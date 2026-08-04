@@ -1,0 +1,11 @@
+# Belt-and-suspenders top-level ignore, in addition to backend/.gitignore
+# and frontend/.gitignore which already cover their own subtrees.
+.env
+.env.*
+!.env.example
+*.pyc
+__pycache__/
+node_modules/
+.next/
+.DS_Store
+.venv/

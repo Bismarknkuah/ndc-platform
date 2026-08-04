@@ -1,0 +1,73 @@
+from django.urls import path
+
+from apps.discipline.views import (
+    DisciplinaryCaseAppealView,
+    DisciplinaryCaseConveneView,
+    DisciplinaryCaseDecideView,
+    DisciplinaryCaseDetailView,
+    DisciplinaryCaseListCreateView,
+    DisciplinaryCaseRecommendView,
+    DisciplinaryCommitteeListCreateView,
+    MemberSuspensionEndView,
+    MemberSuspensionListCreateView,
+    MemberSuspensionReferView,
+    MemberSuspensionRenewView,
+)
+
+urlpatterns = [
+    path(
+        "committees/",
+        DisciplinaryCommitteeListCreateView.as_view(),
+        name="discipline-committee-list-create",
+    ),
+    path(
+        "cases/",
+        DisciplinaryCaseListCreateView.as_view(),
+        name="discipline-case-list-create",
+    ),
+    path(
+        "cases/<str:case_id>/",
+        DisciplinaryCaseDetailView.as_view(),
+        name="discipline-case-detail",
+    ),
+    path(
+        "cases/<str:case_id>/convene/",
+        DisciplinaryCaseConveneView.as_view(),
+        name="discipline-case-convene",
+    ),
+    path(
+        "cases/<str:case_id>/recommend/",
+        DisciplinaryCaseRecommendView.as_view(),
+        name="discipline-case-recommend",
+    ),
+    path(
+        "cases/<str:case_id>/decide/",
+        DisciplinaryCaseDecideView.as_view(),
+        name="discipline-case-decide",
+    ),
+    path(
+        "cases/<str:case_id>/appeal/",
+        DisciplinaryCaseAppealView.as_view(),
+        name="discipline-case-appeal",
+    ),
+    path(
+        "suspensions/",
+        MemberSuspensionListCreateView.as_view(),
+        name="discipline-suspension-list-create",
+    ),
+    path(
+        "suspensions/<str:suspension_id>/refer/",
+        MemberSuspensionReferView.as_view(),
+        name="discipline-suspension-refer",
+    ),
+    path(
+        "suspensions/<str:suspension_id>/renew/",
+        MemberSuspensionRenewView.as_view(),
+        name="discipline-suspension-renew",
+    ),
+    path(
+        "suspensions/<str:suspension_id>/end/",
+        MemberSuspensionEndView.as_view(),
+        name="discipline-suspension-end",
+    ),
+]

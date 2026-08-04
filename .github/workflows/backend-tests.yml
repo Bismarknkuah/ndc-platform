@@ -1,0 +1,43 @@
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check for hardcoded secrets first
+        run: python -m pytest tests/test_no_hardcoded_secrets.py -v
+        # Runs before the full suite on purpose: this is the specific
+        # check that has caught the same real credential being
+        # accidentally hardcoded into settings.py or .env.example four
+        # separate times in this project's history. If this ever fails,
+        # it is the priority to fix before anything else, and it is
+        # deliberately fast so a failure shows up in seconds, not
+        # minutes.
+
+      - name: Run full test suite
+        run: python -m pytest -q
+
+      - name: Lint
+        run: |
+          pip install black flake8
+          black --check apps tests config
+          flake8 apps tests config --max-line-length=120 --extend-ignore=E203
