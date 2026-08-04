@@ -104,6 +104,23 @@ Settings -> Security.
 
 ## Troubleshooting
 
+### Deploy fails with `Error: '$PORT' is not a valid port number`
+
+This means gunicorn received the literal text `$PORT` instead of the
+real port number. `backend/Dockerfile`'s own `CMD` is written in shell
+form specifically so `${PORT:-8000}` gets expanded by a real shell at
+container startup - this is correct and should not be changed to JSON
+array/exec form. The actual cause is a `startCommand` field in
+`backend/railway.json`: when present, it overrides the Dockerfile's
+`CMD` entirely, and Railway does not run that override through a shell
+the same way Docker does, so any `$PORT` in it is never substituted.
+
+**The fix is to not set `startCommand` in `railway.json` at all** and
+let the Dockerfile's own `CMD` run. If `railway.json` ever has a
+`startCommand` added back (including one that looks correct, with
+`$PORT` in it), that is what will break this exact way again - remove
+it rather than trying to fix the syntax of the override itself.
+
 ### Login fails with a CORS error in the browser console, backend itself looks healthy
 
 If Railway shows the backend deployment as healthy and Vercel shows the
