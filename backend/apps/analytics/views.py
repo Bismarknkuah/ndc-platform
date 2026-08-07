@@ -6,9 +6,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.analytics.permissions import can_view_analytics
+from apps.analytics.permissions import can_view_analytics, can_view_ground_intelligence
 from apps.analytics.services import (
     compute_department_analytics,
+    compute_ground_intelligence,
     compute_membership_analytics,
 )
 from apps.core.exceptions import APIError
@@ -152,3 +153,31 @@ class GISMapView(APIView):
         ]
 
         return Response({"type": "FeatureCollection", "features": features})
+
+
+class GroundIntelligenceView(APIView):
+    """
+    GET /api/v1/analytics/ground-intelligence/<unit_id>/
+
+    Real, aggregated complaint/welfare/report data for a unit and its
+    whole subtree - the actual ground situation, not a guess. Deliberately
+    a narrower audience than the jurisdiction rollup every executive
+    already gets for their own unit: this reaches into any unit the
+    caller selects, not just their own, so it's gated on
+    analytics.ground_intelligence specifically (Flagbearer, National
+    Chairman) rather than the general hierarchy.manage check.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, tags=["analytics"])
+    def get(self, request, unit_id):
+        if not can_view_ground_intelligence(request.user):
+            raise APIError(
+                "Ground Intelligence is only available to the party's national "
+                "leadership.",
+                code="forbidden",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+        unit = _get_unit_or_404(unit_id)
+        return Response(compute_ground_intelligence(unit))

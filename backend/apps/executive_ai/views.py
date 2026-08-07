@@ -10,6 +10,7 @@ from apps.core.exceptions import APIError
 from apps.executive_ai.services import (
     draft_broadcast,
     generate_meeting_agenda,
+    ground_situation_briefing,
     summarize_pending_items,
 )
 
@@ -131,3 +132,55 @@ class GenerateMeetingAgendaView(APIView):
             )
         log_action(request.user, "executive_ai.meeting_agenda", request=request)
         return Response({"agenda": agenda})
+
+
+class GroundBriefingView(APIView):
+    """POST /api/v1/executive-ai/ground-briefing/<unit_id>/ - fetches
+    real complaint/welfare/report data for the given unit server-side
+    (never trusts a client-supplied summary for this one, unlike
+    summarize-pending-items, since a fabricated or edited "ground
+    situation" would be a genuinely serious problem for a national
+    leader to act on) and asks for a briefing."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None, responses={200: OpenApiTypes.OBJECT}, tags=["executive-ai"]
+    )
+    def post(self, request, unit_id):
+        from apps.analytics.permissions import can_view_ground_intelligence
+        from apps.analytics.services import compute_ground_intelligence
+        from apps.hierarchy.documents import OrganizationalUnit
+
+        if not can_view_ground_intelligence(request.user):
+            raise APIError(
+                "Ground Intelligence is only available to the party's national "
+                "leadership.",
+                code="forbidden",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from mongoengine.errors import DoesNotExist
+        from mongoengine.errors import ValidationError as MongoValidationError
+
+        try:
+            unit = OrganizationalUnit.objects.get(id=unit_id, is_active=True)
+        except (DoesNotExist, MongoValidationError) as exc:
+            raise APIError(
+                "Organizational unit not found.",
+                code="not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            ) from exc
+
+        ground_intelligence = compute_ground_intelligence(unit)
+        briefing = ground_situation_briefing(unit.name, ground_intelligence)
+        if briefing is None:
+            raise APIError(
+                "The AI assistant isn't available right now.",
+                code="ai_unavailable",
+                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        log_action(request.user, "executive_ai.ground_briefing", request=request)
+        return Response(
+            {"briefing": briefing, "ground_intelligence": ground_intelligence}
+        )

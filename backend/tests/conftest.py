@@ -113,6 +113,7 @@ def national_chairman_role():
             "hierarchy.manage_roles",
             "audit.view",
             "meetings.call_all_members",
+            "analytics.ground_intelligence",
         ],
     )
 

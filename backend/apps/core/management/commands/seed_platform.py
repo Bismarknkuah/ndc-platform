@@ -53,6 +53,31 @@ BASE_ROLES = [
             "messaging.broadcast.downward",
             "meetings.call_all_members",
             "audit.view",
+            "analytics.ground_intelligence",
+        ],
+    },
+    {
+        # The Flagbearer is the party's presidential candidate, a
+        # distinct constitutional role from National Chairman (the
+        # Chairman runs day-to-day party administration; the Flagbearer
+        # is the person the party puts forward for the presidency,
+        # chosen separately through internal primaries). Both get full
+        # national oversight and ground-intelligence access, since both
+        # genuinely need visibility across the whole party, not because
+        # they are the same office.
+        "code": "flagbearer",
+        "name": "Flagbearer",
+        "scope": "NATIONAL",
+        "permissions": [
+            "hierarchy.manage",
+            "finance.view",
+            "elections.manage",
+            "messaging.broadcast.downward",
+            "messaging.report.upward",
+            "meetings.call",
+            "meetings.call_all_members",
+            "audit.view",
+            "analytics.ground_intelligence",
         ],
     },
     {
@@ -520,6 +545,14 @@ class Command(BaseCommand):
                 "first_name": "Demo",
                 "last_name": "National Chairman",
                 "role_code": "national_chairman",
+                "unit": national_unit,
+            },
+            {
+                "email": "demo.flagbearer@ndc.example",
+                "membership_id": "NDC-DEMO-000012",
+                "first_name": "Demo",
+                "last_name": "Flagbearer",
+                "role_code": "flagbearer",
                 "unit": national_unit,
             },
             {

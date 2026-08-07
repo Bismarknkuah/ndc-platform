@@ -4,6 +4,7 @@ from apps.analytics.ai_views import AIReportListCreateView
 from apps.analytics.views import (
     DepartmentAnalyticsView,
     GISMapView,
+    GroundIntelligenceView,
     MembershipAnalyticsView,
 )
 
@@ -13,5 +14,10 @@ urlpatterns = [
         "departments/", DepartmentAnalyticsView.as_view(), name="analytics-departments"
     ),
     path("map/", GISMapView.as_view(), name="analytics-map"),
+    path(
+        "ground-intelligence/<str:unit_id>/",
+        GroundIntelligenceView.as_view(),
+        name="analytics-ground-intelligence",
+    ),
     path("ai-report/", AIReportListCreateView.as_view(), name="analytics-ai-report"),
 ]

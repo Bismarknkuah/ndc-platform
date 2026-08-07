@@ -91,3 +91,84 @@ def compute_department_analytics(department, unit) -> dict:
         "status_breakdown": status_counts,
         "completion_rate_percentage": completion_rate,
     }
+
+
+def compute_ground_intelligence(unit, item_limit: int = 15) -> dict:
+    """
+    Real, on-the-ground situation for a unit and everything beneath it -
+    the actual titles and descriptions members and executives have
+    already submitted through Complaints, Welfare, and upward Reports,
+    not a summary invented from nothing. This is deliberately the raw
+    material an AI briefing gets built from (see
+    apps.executive_ai.services.ground_situation_briefing) - the model
+    only ever sees what real people actually reported.
+
+    `item_limit` caps how many of the most recent items from each
+    source get included, so a large region's payload stays bounded
+    rather than growing without limit as more gets reported over time.
+    """
+    from apps.complaints.documents import Complaint
+    from apps.discipline.documents import DisciplinaryCase
+    from apps.messaging.documents import Report
+    from apps.welfare.documents import WelfareRequest
+
+    unit_ids = [u.id for u in units_in_subtree(unit)]
+
+    complaints_qs = Complaint.objects(target_unit__in=unit_ids).order_by("-created_at")
+    welfare_qs = WelfareRequest.objects(organizational_unit__in=unit_ids).order_by(
+        "-created_at"
+    )
+    reports_qs = Report.objects(target_unit__in=unit_ids).order_by("-created_at")
+
+    pending_complaints = complaints_qs.filter(status__in=["SUBMITTED", "UNDER_REVIEW"])
+    pending_welfare = welfare_qs.filter(status__in=["SUBMITTED", "UNDER_REVIEW"])
+    pending_discipline = DisciplinaryCase.objects(
+        organizational_unit__in=unit_ids,
+        is_active=True,
+        status__nin=["DECIDED", "CLOSED"],
+    )
+
+    return {
+        "organizational_unit": {
+            "id": str(unit.id),
+            "name": unit.name,
+            "unit_type": unit.unit_type,
+        },
+        "counts": {
+            "pending_complaints": pending_complaints.count(),
+            "pending_welfare_requests": pending_welfare.count(),
+            "pending_discipline_cases": pending_discipline.count(),
+            "total_reports": reports_qs.count(),
+        },
+        "recent_complaints": [
+            {
+                "subject": c.subject,
+                "description": c.description,
+                "type": c.complaint_type,
+                "status": c.status,
+                "unit": c.submitting_unit.name if c.submitting_unit else None,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in pending_complaints[:item_limit]
+        ],
+        "recent_welfare_requests": [
+            {
+                "category": w.category,
+                "description": w.description,
+                "status": w.status,
+                "unit": w.organizational_unit.name if w.organizational_unit else None,
+                "created_at": w.created_at.isoformat(),
+            }
+            for w in pending_welfare[:item_limit]
+        ],
+        "recent_reports": [
+            {
+                "title": r.title,
+                "body": r.body,
+                "status": r.status,
+                "unit": r.submitting_unit.name if r.submitting_unit else None,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in reports_qs[:item_limit]
+        ],
+    }

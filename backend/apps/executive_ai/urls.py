@@ -3,6 +3,7 @@ from django.urls import path
 from apps.executive_ai.views import (
     DraftBroadcastView,
     GenerateMeetingAgendaView,
+    GroundBriefingView,
     SummarizePendingItemsView,
 )
 
@@ -21,5 +22,10 @@ urlpatterns = [
         "meeting-agenda/",
         GenerateMeetingAgendaView.as_view(),
         name="executive-ai-meeting-agenda",
+    ),
+    path(
+        "ground-briefing/<str:unit_id>/",
+        GroundBriefingView.as_view(),
+        name="executive-ai-ground-briefing",
     ),
 ]

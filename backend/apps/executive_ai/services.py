@@ -131,3 +131,48 @@ def generate_meeting_agenda(user, meeting_topic: str, context: str = "") -> str 
     if context:
         user_prompt += f"\nAdditional context: {context}"
     return _call_claude(system_prompt, user_prompt, max_tokens=600)
+
+
+def ground_situation_briefing(unit_name: str, ground_intelligence: dict) -> str | None:
+    """Turns real, already-aggregated complaint/welfare/report data for a
+    unit (see apps.analytics.services.compute_ground_intelligence) into a
+    briefing for a visiting national leader - what is actually happening
+    there, and what to prioritize addressing. The model only ever sees
+    the real titles, descriptions, and counts already fetched from the
+    database by the caller; it never has its own access to look anything
+    up and must not invent problems that were not actually reported."""
+    counts = ground_intelligence.get("counts", {})
+
+    def _format_items(items, text_field, limit=8):
+        lines = []
+        for item in items[:limit]:
+            text = item.get(text_field, "")
+            snippet = text[:200] + ("..." if len(text) > 200 else "")
+            lines.append(f"- [{item.get('status', 'unknown')}] {snippet}")
+        return "\n".join(lines) if lines else "(none currently pending)"
+
+    system_prompt = (
+        "You brief a senior NDC party leader (the National Chairman or "
+        "the Flagbearer) ahead of a visit to a specific place - a "
+        "region, constituency, or branch. You are given real complaints, "
+        "welfare requests, and upward reports already submitted by "
+        "members and executives there. Write a concise ground briefing: "
+        "1) the 3-5 most pressing issues, grounded only in what was "
+        "actually reported below, 2) a short suggested response or "
+        "talking point for each, 3) anything that looks like a pattern "
+        "across multiple reports. Do not invent problems that were not "
+        "reported. If very little was reported, say so plainly rather "
+        "than padding the briefing."
+    )
+    user_prompt = (
+        f"Location: {unit_name}\n\n"
+        f"Pending complaints ({counts.get('pending_complaints', 0)} total, "
+        f"showing most recent):\n"
+        f"{_format_items(ground_intelligence.get('recent_complaints', []), 'description')}\n\n"
+        f"Pending welfare requests ({counts.get('pending_welfare_requests', 0)} total):\n"
+        f"{_format_items(ground_intelligence.get('recent_welfare_requests', []), 'description')}\n\n"
+        f"Recent upward reports ({counts.get('total_reports', 0)} total):\n"
+        f"{_format_items(ground_intelligence.get('recent_reports', []), 'body')}\n\n"
+        f"Pending disciplinary cases: {counts.get('pending_discipline_cases', 0)}"
+    )
+    return _call_claude(system_prompt, user_prompt, max_tokens=900)
