@@ -3,6 +3,7 @@
 import {
   Briefcase,
   Building2,
+  Crown,
   Landmark,
   MapPin,
   Megaphone,
@@ -43,6 +44,7 @@ export interface DemoAccount {
 // sees a dashboard tailored to their own department's real work.
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { label: "Superadmin", email: "demo.superadmin@ndc.example", icon: ShieldAlert, group: "hierarchy" },
+  { label: "Flagbearer", email: "demo.flagbearer@ndc.example", icon: Crown, group: "hierarchy" },
   { label: "National Chairman", email: "demo.national@ndc.example", icon: Landmark, group: "hierarchy" },
   { label: "Regional Chairman", email: "demo.regional@ndc.example", icon: Building2, group: "hierarchy" },
   { label: "District Co-ordinator", email: "demo.district@ndc.example", icon: Network, group: "hierarchy" },

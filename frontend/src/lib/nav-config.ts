@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
+  Crown,
   Users,
   Network,
   Building2,
@@ -45,6 +46,13 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/dashboard",
         icon: LayoutDashboard,
         description: "Your role-adaptive home screen",
+      },
+      {
+        title: "Leader Dashboard",
+        href: "/leader",
+        icon: Crown,
+        permission: "analytics.ground_intelligence",
+        description: "Party-wide analytics and ground intelligence",
       },
     ],
   },
