@@ -1,0 +1,32 @@
+# Runs the backup script on a schedule inside the cluster, uploading to
+# S3-compatible storage. Requires the backend image (it already has the
+# script + Python env) plus mongodump installed - extend the Dockerfile
+# with the MongoDB Database Tools if you deploy this, and add an
+# S3_BACKUP_BUCKET env var + AWS credentials via a Secret for the upload
+# step (aws s3 cp) referenced below, or swap in your provider's CLI.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-backup
+  namespace: ndc-platform
+spec:
+  schedule: "0 2 * * *" # daily at 02:00 UTC
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: ghcr.io/ndc/backend:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  ./scripts/backup_mongodb.sh /tmp/backups &&
+                  echo "Backup created - configure an upload step (aws s3 cp / gsutil / az storage) here."
+              envFrom:
+                - configMapRef: { name: backend-config }
+                - secretRef: { name: backend-secrets }
+              resources:
+                requests: { cpu: "100m", memory: "128Mi" }
+                limits: { cpu: "500m", memory: "512Mi" }

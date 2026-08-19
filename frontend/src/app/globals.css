@@ -1,0 +1,215 @@
+/* Self-hosted via @fontsource - no external CDN calls at build or runtime
+   (next/font/google is unreachable from this deployment's network). */
+@import "@fontsource/sora/500.css";
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-sora: "Sora";
+  --font-inter: "Inter";
+  --font-jetbrains-mono: "JetBrains Mono";
+
+  /* ---- NDC design tokens (light) ---- */
+  --background: #f7f8f7;
+  --foreground: #161a18;
+
+  --surface: #ffffff;
+  --surface-foreground: #161a18;
+
+  --primary: #0e6b3e;
+  --primary-foreground: #f7faf8;
+
+  --secondary: #eef2ef;
+  --secondary-foreground: #161a18;
+
+  --muted: #eef2ef;
+  --muted-foreground: #5b6560;
+
+  --accent: #b8860b;
+  --accent-foreground: #2a1f04;
+
+  --destructive: #c8352e;
+  --destructive-foreground: #fdf5f4;
+
+  --success: #0e6b3e;
+  --success-foreground: #f7faf8;
+
+  --warning: #b8860b;
+  --warning-foreground: #2a1f04;
+
+  --border: #e2e5e3;
+  --input: #e2e5e3;
+  --ring: #0e6b3e;
+
+  --card: #ffffff;
+  --card-foreground: #161a18;
+
+  --popover: #ffffff;
+  --popover-foreground: #161a18;
+
+  --sidebar: #10241a;
+  --sidebar-foreground: #e8efe9;
+  --sidebar-primary: #1a8f56;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #163a27;
+  --sidebar-accent-foreground: #e8efe9;
+  --sidebar-border: #1c3527;
+  --sidebar-ring: #1a8f56;
+
+  --radius: 0.625rem;
+
+  --chart-1: #0e6b3e;
+  --chart-2: #b8860b;
+  --chart-3: #2f6690;
+  --chart-4: #8a4fae;
+  --chart-5: #c8352e;
+}
+
+.dark {
+  --background: #0d100e;
+  --foreground: #e8efe9;
+
+  --surface: #141814;
+  --surface-foreground: #e8efe9;
+
+  --primary: #1a8f56;
+  --primary-foreground: #06140d;
+
+  --secondary: #1b201c;
+  --secondary-foreground: #e8efe9;
+
+  --muted: #1b201c;
+  --muted-foreground: #8d9891;
+
+  --accent: #d1a12e;
+  --accent-foreground: #201705;
+
+  --destructive: #e0554d;
+  --destructive-foreground: #200706;
+
+  --success: #1a8f56;
+  --success-foreground: #06140d;
+
+  --warning: #d1a12e;
+  --warning-foreground: #201705;
+
+  --border: #262b26;
+  --input: #262b26;
+  --ring: #1a8f56;
+
+  --card: #141814;
+  --card-foreground: #e8efe9;
+
+  --popover: #141814;
+  --popover-foreground: #e8efe9;
+
+  --sidebar: #0a1510;
+  --sidebar-foreground: #e8efe9;
+  --sidebar-primary: #1a8f56;
+  --sidebar-primary-foreground: #06140d;
+  --sidebar-accent: #12241a;
+  --sidebar-accent-foreground: #e8efe9;
+  --sidebar-border: #16261c;
+  --sidebar-ring: #1a8f56;
+
+  --chart-1: #1a8f56;
+  --chart-2: #d1a12e;
+  --chart-3: #5b9bc7;
+  --chart-4: #b07fd1;
+  --chart-5: #e0554d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+}

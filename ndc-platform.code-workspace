@@ -1,0 +1,18 @@
+{
+  "folders": [
+    { "name": "backend", "path": "backend" },
+    { "name": "frontend", "path": "frontend" },
+    { "name": "mobile", "path": "mobile" }
+  ],
+  "settings": {
+    "python.analysis.typeCheckingMode": "basic"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "dbaeumer.vscode-eslint",
+      "Dart-Code.flutter"
+    ]
+  }
+}

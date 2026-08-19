@@ -1,0 +1,67 @@
+from django.urls import path
+
+from apps.executive_ai.views import (
+    AcknowledgeDirectiveView,
+    CompleteDirectiveView,
+    DirectiveListCreateView,
+    DraftBroadcastView,
+    GenerateMeetingAgendaView,
+    GroundBriefingView,
+    IssuedDirectivesView,
+    OfficialReportView,
+    SpeechView,
+    SummarizePendingItemsView,
+)
+
+urlpatterns = [
+    path(
+        "draft-broadcast/",
+        DraftBroadcastView.as_view(),
+        name="executive-ai-draft-broadcast",
+    ),
+    path(
+        "summarize-pending/",
+        SummarizePendingItemsView.as_view(),
+        name="executive-ai-summarize-pending",
+    ),
+    path(
+        "meeting-agenda/",
+        GenerateMeetingAgendaView.as_view(),
+        name="executive-ai-meeting-agenda",
+    ),
+    path(
+        "ground-briefing/<str:unit_id>/",
+        GroundBriefingView.as_view(),
+        name="executive-ai-ground-briefing",
+    ),
+    path(
+        "official-report/<str:unit_id>/",
+        OfficialReportView.as_view(),
+        name="executive-ai-official-report",
+    ),
+    path(
+        "speech/<str:unit_id>/",
+        SpeechView.as_view(),
+        name="executive-ai-speech",
+    ),
+    path(
+        "directives/",
+        DirectiveListCreateView.as_view(),
+        name="executive-ai-directives",
+    ),
+    path(
+        "directives/issued/",
+        IssuedDirectivesView.as_view(),
+        name="executive-ai-directives-issued",
+    ),
+    path(
+        "directives/<str:directive_id>/acknowledge/",
+        AcknowledgeDirectiveView.as_view(),
+        name="executive-ai-directive-acknowledge",
+    ),
+    path(
+        "directives/<str:directive_id>/complete/",
+        CompleteDirectiveView.as_view(),
+        name="executive-ai-directive-complete",
+    ),
+]

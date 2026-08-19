@@ -1,0 +1,25 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.formatOnSave": true
+  },
+  "[typescript][typescriptreact]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.selectionHighlight": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["-q"],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.next": true,
+    "**/node_modules": true
+  }
+}

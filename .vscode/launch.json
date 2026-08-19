@@ -1,0 +1,63 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Django: runserver",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:backend}/manage.py",
+      "args": ["runserver"],
+      "cwd": "${workspaceFolder:backend}",
+      "django": true,
+      "justMyCode": true,
+      "env": { "MONGO_URI": "mongodb://localhost:27017" }
+    },
+    {
+      "name": "Django: seed_platform",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder:backend}/manage.py",
+      "args": ["seed_platform"],
+      "cwd": "${workspaceFolder:backend}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Django: run tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q"],
+      "cwd": "${workspaceFolder:backend}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Next.js: dev server",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder:frontend}"
+    },
+    {
+      "name": "Flutter (Android emulator, local backend)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder:mobile}",
+      "args": ["--dart-define=NDC_API_BASE_URL=http://10.0.2.2:8000/api/v1"]
+    },
+    {
+      "name": "Flutter (iOS/desktop, local backend)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder:mobile}",
+      "args": ["--dart-define=NDC_API_BASE_URL=http://localhost:8000/api/v1"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Backend + Frontend",
+      "configurations": ["Django: runserver", "Next.js: dev server"]
+    }
+  ]
+}
