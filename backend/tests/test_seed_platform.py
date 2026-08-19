@@ -4,16 +4,23 @@ from django.core.management import call_command
 pytestmark = pytest.mark.django_db
 
 
-NON_SUPERADMIN_DEMO_EMAILS = [
-    "demo.national@ndc.example",
-    "demo.regional@ndc.example",
-    "demo.district@ndc.example",
-    "demo.constituency@ndc.example",
-    "demo.branch@ndc.example",
-    "demo.member@ndc.example",
-]
 SUPERADMIN_DEMO_EMAIL = "demo.superadmin@ndc.example"
-ALL_DEMO_EMAILS = [SUPERADMIN_DEMO_EMAIL, *NON_SUPERADMIN_DEMO_EMAILS]
+
+
+def _all_demo_emails():
+    """Every demo account's email, read from the database after seeding
+    rather than a hand-maintained list here - the earlier hardcoded list
+    only covered 6 of what are now 33 accounts, meaning most demo
+    accounts (including every one added across the last two sessions)
+    were never actually checked by the password-refresh test below.
+    This can't drift out of sync again since it queries reality."""
+    from apps.accounts.documents import User
+
+    return [u.email for u in User.objects(email__contains="demo.")]
+
+
+def _non_superadmin_demo_emails():
+    return [e for e in _all_demo_emails() if e != SUPERADMIN_DEMO_EMAIL]
 
 
 def test_seed_platform_creates_demo_accounts():
@@ -21,7 +28,7 @@ def test_seed_platform_creates_demo_accounts():
 
     call_command("seed_platform")
 
-    for email in NON_SUPERADMIN_DEMO_EMAILS:
+    for email in _non_superadmin_demo_emails():
         user = User.objects(email=email).first()
         assert user is not None, f"{email} was not created"
         assert user.is_superadmin is False, f"{email} must not be a superadmin"
@@ -41,7 +48,7 @@ def test_seed_platform_creates_exactly_one_superadmin_demo_account():
     assert superadmin.is_superadmin is True
     assert superadmin.role.code == "system_administrator"
 
-    for email in NON_SUPERADMIN_DEMO_EMAILS:
+    for email in _non_superadmin_demo_emails():
         assert User.objects(email=email).first().is_superadmin is False
 
 
@@ -50,7 +57,7 @@ def test_seed_platform_demo_accounts_can_actually_log_in():
 
     call_command("seed_platform")
 
-    for email in ALL_DEMO_EMAILS:
+    for email in _all_demo_emails():
         user = User.objects(email=email).first()
         assert user.check_password("DemoPass123!"), f"{email} password mismatch"
 
@@ -66,7 +73,7 @@ def test_seed_platform_is_idempotent_and_refreshes_demo_passwords():
     call_command("seed_platform")
     call_command("seed_platform")
 
-    for email in ALL_DEMO_EMAILS:
+    for email in _all_demo_emails():
         assert User.objects(email=email).count() == 1
 
 
@@ -320,3 +327,33 @@ def test_new_scoped_tier_demo_account_can_log_in():
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
     response = client.get("/api/v1/auth/me/")
     assert response.status_code == 200
+
+
+def test_role_permissions_are_kept_in_sync_on_every_re_run():
+    """The real bug this fixes: roles were only ever created once and
+    never brought back into sync with BASE_ROLES afterward. If a role
+    already existed in a database from an earlier seed run, a later
+    permission change in the code (like adding
+    analytics.ground_intelligence to national_general_secretary) would
+    silently never take effect there, no matter how many times
+    seed_platform was re-run."""
+    from apps.accounts.documents import Role
+
+    call_command("seed_platform")
+
+    role = Role.objects(code="national_general_secretary").first()
+    assert role is not None
+    original_permissions = list(role.permissions)
+
+    # Simulate an already-seeded environment where this role predates
+    # a permission change in the code - strip a permission the code
+    # actually grants, exactly like a stale, previously-seeded database
+    # would look before a fix.
+    role.permissions = ["hierarchy.manage"]
+    role.save()
+
+    call_command("seed_platform")
+
+    role.reload()
+    assert role.permissions == original_permissions
+    assert "analytics.ground_intelligence" in role.permissions

@@ -156,6 +156,29 @@ Assigning a Directive to another executive stays top-tier only - it is
 deliberately not scoped, since it is meant for national leadership
 directing any executive across the party, not a per-jurisdiction tool.
 
+## A demo account login fails with 401 after a new deploy
+
+This means `python manage.py seed_platform` hasn't actually been
+re-run against your real production database since the new code
+landed - pushing code and deploying it never creates or updates demo
+accounts by itself, the seed command is a separate, explicit step.
+
+Run it (via `railway run python manage.py seed_platform` or Railway's
+shell) and read its own output carefully - it now reports exactly how
+many roles were newly created versus updated to match the current
+code, and separately lists by name any demo account it had to skip
+entirely (this only happens if a role_code in the demo account list
+doesn't match any real role, which would itself be a bug worth
+reporting). If the summary shows the expected counts and no skipped
+accounts, every demo account's password has just been reset to
+`DemoPass123!` (or your `DEMO_ACCOUNTS_PASSWORD` override) - the login
+should work immediately after.
+
+Role permissions are also fully re-synced on every run now, not just
+created once - so re-running this command is always safe and always
+brings roles and demo accounts back in line with whatever code is
+currently deployed, without needing to delete anything first.
+
 ## Troubleshooting
 
 ### A new deploy doesn't seem to reflect, but a brand new page does

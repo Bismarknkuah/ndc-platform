@@ -418,6 +418,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         created_roles = 0
+        updated_roles = 0
         for role_def in BASE_ROLES:
             existing = Role.objects(code=role_def["code"]).first()
             if existing is None:
@@ -429,9 +430,25 @@ class Command(BaseCommand):
                     permissions=role_def["permissions"],
                 )
                 created_roles += 1
+            else:
+                # A role's permission list is code, not user data - it
+                # must always match BASE_ROLES exactly, every run, or a
+                # permission change (like adding
+                # analytics.ground_intelligence to an existing role)
+                # silently never takes effect on an environment where
+                # that role was already seeded once before. This was a
+                # real bug: roles were only ever created once and never
+                # brought back in sync afterward.
+                existing.name = role_def["name"]
+                existing.scope = role_def["scope"]
+                existing.is_executive = role_def.get("is_executive", True)
+                existing.permissions = role_def["permissions"]
+                existing.save()
+                updated_roles += 1
         self.stdout.write(
             self.style.SUCCESS(
-                f"Roles seeded ({created_roles} newly created, {len(BASE_ROLES)} total)."
+                f"Roles seeded ({created_roles} newly created, {updated_roles} "
+                f"updated to match the current code, {len(BASE_ROLES)} total)."
             )
         )
 
@@ -889,9 +906,11 @@ class Command(BaseCommand):
 
         created_count = 0
         updated_count = 0
+        skipped_emails = []
         for definition in demo_definitions:
             role = Role.objects(code=definition["role_code"]).first()
             if role is None:
+                skipped_emails.append(definition["email"])
                 self.stdout.write(
                     self.style.WARNING(
                         f"Role '{definition['role_code']}' not found - skipping "
@@ -943,6 +962,16 @@ class Command(BaseCommand):
                 f"{updated_count} password-refreshed, password: {demo_password})."
             )
         )
+        if skipped_emails:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"{len(skipped_emails)} demo account(s) were skipped entirely "
+                    f"because their role wasn't found: {', '.join(skipped_emails)}. "
+                    "This means the roles list above and the demo account list have "
+                    "drifted out of sync - check role_code spelling in "
+                    "_seed_demo_accounts against BASE_ROLES."
+                )
+            )
 
     def _assign_demo_department_head(self, user, department_code, unit):
         from apps.departments.documents import Department, DepartmentAssignment
