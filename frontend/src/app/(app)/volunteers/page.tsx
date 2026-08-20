@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { CreateOpportunityDialog } from "@/components/volunteers/create-opportunity-dialog";
 import * as volunteersApi from "@/lib/api/volunteers";
 import { ApiError } from "@/lib/api/client";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "outline" | "secondary"> = {
   OPEN: "success",
@@ -23,6 +25,8 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "outline" | "second
 
 export default function VolunteersPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -48,9 +52,11 @@ export default function VolunteersPage() {
             Specific opportunities the party needs help with, and who has signed up.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> New Opportunity
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> New Opportunity
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

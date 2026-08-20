@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import * as documentsApi from "@/lib/api/documents";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 function DownloadButton({ documentId, fileName }: { documentId: string; fileName: string }) {
   const [downloading, setDownloading] = useState(false);
@@ -40,6 +42,8 @@ function DownloadButton({ documentId, fileName }: { documentId: string; fileName
 }
 
 export default function DocumentsPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const [uploadOpen, setUploadOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -56,9 +60,11 @@ export default function DocumentsPage() {
             Constitution, minutes, forms, policy, and financial reports
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Plus /> Upload Document
-        </Button>
+        {canManage && (
+          <Button onClick={() => setUploadOpen(true)}>
+            <Plus /> Upload Document
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

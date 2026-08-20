@@ -18,6 +18,8 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { UploadMediaDialog } from "@/components/media/upload-media-dialog";
 import * as mediaApi from "@/lib/api/media";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
   PHOTO: ImageIcon,
@@ -89,6 +91,8 @@ function MediaDetailDialog({
 }
 
 export default function MediaPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -104,9 +108,11 @@ export default function MediaPage() {
           <h1 className="text-2xl font-display font-semibold">Media Library</h1>
           <p className="text-sm text-muted-foreground">Photos, videos, audio, and press clippings</p>
         </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Plus /> Add Media
-        </Button>
+        {canManage && (
+          <Button onClick={() => setUploadOpen(true)}>
+            <Plus /> Add Media
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

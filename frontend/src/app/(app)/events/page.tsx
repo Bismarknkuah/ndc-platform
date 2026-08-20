@@ -15,8 +15,12 @@ import { CreateEventCampaignDialog } from "@/components/events/create-campaign-d
 import { CreateEventDialog } from "@/components/events/create-event-dialog";
 import * as eventsApi from "@/lib/api/events";
 import { ApiError } from "@/lib/api/client";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 function CampaignsTab() {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const [createOpen, setCreateOpen] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["event-campaigns"],
@@ -26,9 +30,11 @@ function CampaignsTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> New Campaign
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> New Campaign
+          </Button>
+        )}
       </div>
       {isLoading ? (
         <Skeleton className="h-48" />
@@ -58,6 +64,8 @@ function CampaignsTab() {
 }
 
 function EventsTab() {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const { data, isLoading } = useQuery({
@@ -78,9 +86,11 @@ function EventsTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> New Event
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> New Event
+          </Button>
+        )}
       </div>
       {isLoading ? (
         <Skeleton className="h-48" />

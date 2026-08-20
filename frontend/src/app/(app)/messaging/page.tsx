@@ -21,7 +21,7 @@ import * as messagingApi from "@/lib/api/messaging";
 import type { Report } from "@/lib/api/messaging";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/auth-store";
-import { hasPermission } from "@/lib/permissions";
+import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 
 function BroadcastsTab() {
   const queryClient = useQueryClient();
@@ -169,6 +169,8 @@ function ReportsTab() {
 }
 
 function MeetingsTab() {
+  const user = useAuthStore((s) => s.user);
+  const canSchedule = hasAnyPermission(user, ["meetings.call", "hierarchy.manage"]);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
 
@@ -180,9 +182,16 @@ function MeetingsTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> Schedule Meeting
-        </Button>
+        {/* can_call_meeting on the backend also grants authority via
+            department HEAD/DEPUTY_HEAD status for a departmental
+            meeting - that path can't be cheaply checked client-side, so
+            a department-scoped head without meetings.call/hierarchy.manage
+            won't see this button, same documented trade-off as Elections. */}
+        {canSchedule && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> Schedule Meeting
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StaggerContainer, StaggerItem } from "@/components/shared/stagger-list";
 import { CreateElectionDialog } from "@/components/elections/create-election-dialog";
 import * as electionsApi from "@/lib/api/elections";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "outline" | "secondary"> = {
   OPEN: "success",
@@ -24,6 +26,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "outline" | "second
 
 export default function ElectionsPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -41,15 +44,18 @@ export default function ElectionsPage() {
           </p>
         </div>
         {/* can_manage_election on the backend grants authority via either
-            the "elections.manage" role permission OR being HEAD of the
-            Elections/IT department at any unit - client-side permission
-            checks can't cheaply express that OR without duplicating the
-            department-membership query, so the button is always shown
-            and an unauthorized attempt gets a clear error toast from the
-            real 403 response instead of being hidden speculatively. */}
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> New Election
-        </Button>
+            the "elections.manage" role permission (gated here) OR being
+            HEAD of the Elections/IT department at any unit. That second
+            path can't be cheaply checked client-side without duplicating
+            the department-membership query, so a department-scoped
+            Elections/IT head without the broader role permission won't
+            see this button - they can still reach the real endpoint
+            directly if needed, and the backend correctly allows them. */}
+        {hasPermission(user, "elections.manage") && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> New Election
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
