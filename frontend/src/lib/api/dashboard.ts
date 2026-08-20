@@ -124,7 +124,13 @@ export interface RoleInsightAction {
 }
 
 export interface RoleInsight {
-  widget: "secretary" | "wing" | "auditor";
+  widget:
+    | "secretary"
+    | "wing"
+    | "auditor"
+    | "elections"
+    | "international_relations"
+    | "auxiliary_coordinator";
   title: string;
   stats: DepartmentInsightStat[];
   upcoming_meetings?: { id: string; title: string; scheduled_start: string }[];

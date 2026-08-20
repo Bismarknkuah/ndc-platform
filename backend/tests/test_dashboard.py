@@ -479,3 +479,144 @@ def test_election_it_director_gets_real_elections_insight_not_generic_fallback(
     it_department = Department.objects.create(name="IT", code="it")
     insight = compute_department_insight(it_department, national_unit)
     assert insight["widget"] == "elections"
+
+
+def test_director_elections_gets_real_elections_insight(national_unit):
+    """director_elections has elections.manage but is not a department
+    head and has no hierarchy.manage - without this fix they got
+    nothing at all despite elections being their entire constitutional
+    function."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Director of Elections",
+        code="director_elections",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["elections.manage", "messaging.report.upward"],
+    )
+    director = User(
+        email="director-elections-test@example.com",
+        phone_number="0244000086",
+        first_name="Test",
+        last_name="Director",
+        membership_id="NDC-TEST-000086",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" not in body
+    assert body["role_insight"]["widget"] == "elections"
+
+
+def test_international_relations_director_gets_real_external_branch_count(
+    national_unit,
+):
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.hierarchy.documents import OrganizationalUnit
+    from rest_framework.test import APIClient
+
+    OrganizationalUnit.objects.create(
+        name="Test Diaspora Chapter",
+        code="ndc-test-external-branch",
+        unit_type="EXTERNAL_BRANCH",
+        parent=national_unit,
+    )
+    role = Role.objects.create(
+        name="Director of International Relations",
+        code="director_international_relations",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["messaging.report.upward"],
+    )
+    director = User(
+        email="director-intl-test@example.com",
+        phone_number="0244000085",
+        first_name="Test",
+        last_name="Director",
+        membership_id="NDC-TEST-000085",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role_insight"]["widget"] == "international_relations"
+    assert body["role_insight"]["stats"][0]["value"] >= 1
+
+
+def test_auxiliary_coordinator_gets_real_member_and_report_counts():
+    """Confirms one representative auxiliary leader (Council of Elders
+    Chair) gets the shared, honest widget instead of nothing - and
+    that it correctly counts real members in their unit, not a fake
+    number."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.hierarchy.documents import OrganizationalUnit
+    from apps.messaging.documents import Report
+    from rest_framework.test import APIClient
+
+    national = OrganizationalUnit.objects.create(
+        name="National Aux Test", code="ndc-national-aux-test", unit_type="NATIONAL"
+    )
+    elders_unit = OrganizationalUnit.objects.create(
+        name="Council of Elders Test",
+        code="ndc-elders-test",
+        unit_type="COUNCIL_OF_ELDERS",
+        parent=national,
+    )
+    role = Role.objects.create(
+        name="Council of Elders Chair",
+        code="council_of_elders_chair",
+        scope="COUNCIL_OF_ELDERS",
+        is_executive=True,
+        permissions=["messaging.report.upward", "audit.view"],
+    )
+    chair = User(
+        email="elders-chair-test@example.com",
+        phone_number="0244000084",
+        first_name="Test",
+        last_name="Chair",
+        membership_id="NDC-TEST-000084",
+        organizational_unit=elders_unit,
+        role=role,
+    )
+    chair.set_password("StrongPass123!")
+    chair.save()
+    Report.objects.create(
+        title="Test mediation report",
+        body="Body text.",
+        submitted_by=chair,
+        submitting_unit=elders_unit,
+        target_unit=national,
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(chair)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role_insight"]["widget"] == "auxiliary_coordinator"
+    assert body["role_insight"]["stats"][0]["value"] == 1  # the chair themselves
+    assert body["role_insight"]["stats"][1]["value"] == 1  # the report filed

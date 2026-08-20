@@ -1,4 +1,4 @@
-import { CalendarClock, ShieldCheck, Users } from "lucide-react";
+import { CalendarClock, Globe, ShieldCheck, Users, Vote } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RoleInsight } from "@/lib/api/dashboard";
@@ -7,6 +7,9 @@ const WIDGET_ICONS = {
   secretary: CalendarClock,
   wing: Users,
   auditor: ShieldCheck,
+  elections: Vote,
+  international_relations: Globe,
+  auxiliary_coordinator: Users,
 } as const;
 
 export function RoleInsightCard({ insight }: { insight: RoleInsight }) {

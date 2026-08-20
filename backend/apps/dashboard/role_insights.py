@@ -136,6 +136,93 @@ def _auditor_insight(user) -> dict:
     }
 
 
+def _director_elections_insight(user) -> dict:
+    """Director of Elections has elections.manage but is not a
+    department head and has no hierarchy.manage, so without this they
+    would get nothing at all despite elections being their entire
+    constitutional function. Reuses the same real elections data the
+    Elections department's own insight already computes."""
+    from apps.dashboard.department_insights import _elections_insight
+
+    unit = user.organizational_unit
+    result = _elections_insight(None, unit)
+    result["title"] = "Elections Overview"
+    return result
+
+
+def _international_relations_insight(user) -> dict:
+    """Director of International Relations - real data available:
+    External Branch units genuinely exist in this platform's
+    auxiliary structure (diaspora chapters), so this reflects actual
+    branch count rather than nothing."""
+    from apps.hierarchy.documents import OrganizationalUnit
+
+    external_branches = OrganizationalUnit.objects(
+        unit_type="EXTERNAL_BRANCH", is_active=True
+    )
+    return {
+        "widget": "international_relations",
+        "title": "International Relations Overview",
+        "stats": [
+            {"label": "External Branches", "value": external_branches.count()},
+        ],
+        "note": (
+            "Diplomatic engagement and delegation tracking are not yet built "
+            "as real features in this platform - this reflects only the "
+            "External Branch (diaspora chapter) count that already exists."
+        ),
+    }
+
+
+AUXILIARY_COORDINATOR_ROLE_CODES = {
+    "tein_campus_coordinator",
+    "zongo_caucus_coordinator",
+    "professionals_forum_convener",
+    "external_branch_chairman",
+    "council_of_elders_chair",
+    "parliamentary_group_leader",
+    "functional_committee_chair",
+}
+
+
+def _auxiliary_coordinator_insight(user) -> dict:
+    """The 7 auxiliary structure leaders below TEIN National (which
+    already has hierarchy.manage and gets the real jurisdiction rollup)
+    are deliberately narrow - report.upward only, no hierarchy.manage,
+    no department. None of these auxiliary bodies (Zongo Caucus,
+    Professionals Forum, External Branches, Council of Elders,
+    Parliamentary Group, Functional Committees) have a dedicated
+    activity data model in this platform yet (no mediation-case model
+    for the Council of Elders, no legislative-activity model for the
+    Parliamentary Group, etc.) - rather than invent fake numbers for
+    features that don't exist, this shows the two things that are
+    genuinely real for every one of them: their unit's actual member
+    count, and how many upward reports they've actually filed."""
+    from apps.messaging.documents import Report
+
+    unit = user.organizational_unit
+    member_count = 0
+    if unit:
+        from apps.accounts.documents import User as UserDoc
+
+        member_count = UserDoc.objects(organizational_unit=unit, is_active=True).count()
+    reports_filed = Report.objects(submitted_by=user).count()
+
+    return {
+        "widget": "auxiliary_coordinator",
+        "title": f"{user.role.name} Overview",
+        "stats": [
+            {"label": "Members in Your Unit", "value": member_count},
+            {"label": "Reports You've Filed", "value": reports_filed},
+        ],
+        "note": (
+            "Dedicated activity tracking for this structure (mediation cases, "
+            "legislative activity, delegation records, etc.) is not yet built "
+            "as a real feature here."
+        ),
+    }
+
+
 def compute_role_insight(user) -> dict | None:
     """Returns a role-specific widget for the handful of roles that
     need one, or None for everyone else (ordinary members get nothing
@@ -150,4 +237,10 @@ def compute_role_insight(user) -> dict | None:
         return _wing_insight(user, WING_ROLE_UNIT_TYPES[code])
     if code == "internal_auditor":
         return _auditor_insight(user)
+    if code == "director_elections":
+        return _director_elections_insight(user)
+    if code == "director_international_relations":
+        return _international_relations_insight(user)
+    if code in AUXILIARY_COORDINATOR_ROLE_CODES:
+        return _auxiliary_coordinator_insight(user)
     return None
