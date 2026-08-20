@@ -12,6 +12,8 @@ import { CreateCampaignDialog } from "@/components/donations/create-campaign-dia
 import { CampaignDetailDialog } from "@/components/donations/campaign-detail-dialog";
 import * as donationsApi from "@/lib/api/donations";
 import type { FundraisingCampaign } from "@/lib/api/donations";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 const STATUS_VARIANT: Record<string, "success" | "outline" | "secondary"> = {
   ACTIVE: "success",
@@ -21,6 +23,8 @@ const STATUS_VARIANT: Record<string, "success" | "outline" | "secondary"> = {
 };
 
 export default function DonationsPage() {
+  const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "hierarchy.manage");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<FundraisingCampaign | null>(null);
 
@@ -38,9 +42,11 @@ export default function DonationsPage() {
             Fundraising campaigns, pledges, and fulfillment tracking
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus /> New Campaign
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus /> New Campaign
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

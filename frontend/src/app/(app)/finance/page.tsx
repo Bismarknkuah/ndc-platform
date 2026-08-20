@@ -16,10 +16,12 @@ import { RecordFinanceDialog } from "@/components/finance/record-finance-dialog"
 import * as financeApi from "@/lib/api/finance";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 
 export default function FinancePage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const canManage = hasPermission(user, "finance.manage");
   const [unit, setUnit] = useState<{ id: string; name: string } | null>(
     user?.organizational_unit
       ? { id: user.organizational_unit.id, name: user.organizational_unit.name }
@@ -66,9 +68,11 @@ export default function FinancePage() {
               <UnitPicker value={unit} onChange={setUnit} placeholder="Select a unit..." />
             </div>
           </div>
-          <Button onClick={() => setRecordOpen(true)} disabled={!unit}>
-            <Plus /> Record Entry
-          </Button>
+          {canManage && (
+            <Button onClick={() => setRecordOpen(true)} disabled={!unit}>
+              <Plus /> Record Entry
+            </Button>
+          )}
         </div>
       </div>
 
@@ -146,7 +150,7 @@ export default function FinancePage() {
                       <p className="shrink-0 font-mono text-sm font-medium">
                         GHS {Number(record.amount).toLocaleString()}
                       </p>
-                      {record.status === "PENDING" ? (
+                      {record.status === "PENDING" && canManage ? (
                         <div className="flex shrink-0 gap-1.5">
                           <Button
                             size="sm"
