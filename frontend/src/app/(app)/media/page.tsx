@@ -18,6 +18,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { UploadMediaDialog } from "@/components/media/upload-media-dialog";
 import * as mediaApi from "@/lib/api/media";
+import { myAssignments } from "@/lib/api/departments";
 import { useAuthStore } from "@/stores/auth-store";
 import { hasPermission } from "@/lib/permissions";
 
@@ -92,9 +93,28 @@ function MediaDetailDialog({
 
 export default function MediaPage() {
   const user = useAuthStore((s) => s.user);
-  const canManage = hasPermission(user, "hierarchy.manage");
+  const hasHierarchyAuthority = hasPermission(user, "hierarchy.manage");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // can_manage_media on the backend also grants authority to a
+  // HEAD/DEPUTY_HEAD of the Communications department - media is
+  // squarely that department's actual job, so unlike Elections/
+  // Messaging's documented client-side gap, this one is worth the
+  // extra request to check for real rather than hiding the button
+  // from the exact role this exists for.
+  const { data: assignments } = useQuery({
+    queryKey: ["my-department-assignments"],
+    queryFn: myAssignments,
+    enabled: !hasHierarchyAuthority,
+  });
+  const hasCommunicationsAuthority = (assignments ?? []).some(
+    (a) =>
+      a.is_active &&
+      a.department.code === "communications" &&
+      (a.position === "HEAD" || a.position === "DEPUTY_HEAD"),
+  );
+  const canManage = hasHierarchyAuthority || hasCommunicationsAuthority;
 
   const { data, isLoading } = useQuery({
     queryKey: ["media"],

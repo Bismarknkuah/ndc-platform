@@ -178,3 +178,167 @@ def test_authority_can_delete_media(chairman_client, national_unit):
 
     follow_up = chairman_client.get(f"/api/v1/media/{created['id']}/")
     assert follow_up.status_code == 404
+
+
+def test_communications_department_head_can_upload_media_without_hierarchy_manage(
+    national_unit, communications_department
+):
+    """The actual fix: a Communications Director (messaging.broadcast.
+    downward only, deliberately no hierarchy.manage) could not upload
+    media at all before this - the very thing their department exists
+    to manage. Confirms the new department-based authority path works
+    end to end."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.departments.documents import DepartmentAssignment
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Communications Director",
+        code="communications_director_media_test",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["messaging.broadcast.downward"],
+    )
+    director = User(
+        email="comms-media-test@example.com",
+        phone_number="0244000083",
+        first_name="Test",
+        last_name="Comms",
+        membership_id="NDC-TEST-000083",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+    DepartmentAssignment.objects.create(
+        user=director,
+        department=communications_department,
+        organizational_unit=national_unit,
+        position="HEAD",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.post(
+        "/api/v1/media/",
+        {
+            "title": "Press Conference Photo",
+            "media_type": "PHOTO",
+            "organizational_unit_id": str(national_unit.id),
+            "file_base64": _FAKE_PHOTO,
+            "is_public_within_party": True,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+
+def test_ordinary_communications_member_without_head_position_still_cannot_upload(
+    national_unit, communications_department
+):
+    """The fix is scoped to HEAD/DEPUTY_HEAD specifically, not every
+    member of the Communications department - an ordinary team member
+    must still be denied."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.departments.documents import DepartmentAssignment
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Ordinary Member",
+        code="ordinary_member_media_test",
+        scope="BRANCH",
+        is_executive=False,
+        permissions=[],
+    )
+    member = User(
+        email="comms-member-media-test@example.com",
+        phone_number="0244000082",
+        first_name="Test",
+        last_name="Member",
+        membership_id="NDC-TEST-000082",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    member.set_password("StrongPass123!")
+    member.save()
+    DepartmentAssignment.objects.create(
+        user=member,
+        department=communications_department,
+        organizational_unit=national_unit,
+        position="MEMBER",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(member)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.post(
+        "/api/v1/media/",
+        {
+            "title": "Should Be Denied",
+            "media_type": "PHOTO",
+            "organizational_unit_id": str(national_unit.id),
+            "file_base64": _FAKE_PHOTO,
+            "is_public_within_party": True,
+        },
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+def test_communications_authority_from_a_department_head_at_an_ancestor_unit_cascades(
+    national_unit, regional_unit, communications_department
+):
+    """Matching the exact Elections/IT precedent this was modeled on:
+    a national-level Communications head can manage media for a region
+    below them, not just their own exact unit."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.departments.documents import DepartmentAssignment
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Communications Director",
+        code="communications_director_cascade_test",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["messaging.broadcast.downward"],
+    )
+    director = User(
+        email="comms-cascade-test@example.com",
+        phone_number="0244000081",
+        first_name="Test",
+        last_name="Cascade",
+        membership_id="NDC-TEST-000081",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+    DepartmentAssignment.objects.create(
+        user=director,
+        department=communications_department,
+        organizational_unit=national_unit,
+        position="HEAD",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.post(
+        "/api/v1/media/",
+        {
+            "title": "Regional Rally Photo",
+            "media_type": "PHOTO",
+            "organizational_unit_id": str(regional_unit.id),
+            "file_base64": _FAKE_PHOTO,
+            "is_public_within_party": True,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
