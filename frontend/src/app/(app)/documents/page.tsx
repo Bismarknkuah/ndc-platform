@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import * as documentsApi from "@/lib/api/documents";
+import { myAssignments } from "@/lib/api/departments";
 import { useAuthStore } from "@/stores/auth-store";
 import { hasPermission } from "@/lib/permissions";
 
@@ -43,7 +44,24 @@ function DownloadButton({ documentId, fileName }: { documentId: string; fileName
 
 export default function DocumentsPage() {
   const user = useAuthStore((s) => s.user);
-  const canManage = hasPermission(user, "hierarchy.manage");
+  const hasHierarchyAuthority = hasPermission(user, "hierarchy.manage");
+
+  // can_manage_documents on the backend also grants authority to a
+  // HEAD/DEPUTY_HEAD of any department (not just Communications, since
+  // Documents covers everything from financial reports to legal
+  // filings to minutes - genuinely multi-department content, unlike
+  // Media which is specifically Communications' job) - worth the extra
+  // request to check for real rather than hiding this from department
+  // heads who genuinely need it.
+  const { data: assignments } = useQuery({
+    queryKey: ["my-department-assignments"],
+    queryFn: myAssignments,
+    enabled: !hasHierarchyAuthority,
+  });
+  const hasAnyDepartmentAuthority = (assignments ?? []).some(
+    (a) => a.is_active && (a.position === "HEAD" || a.position === "DEPUTY_HEAD"),
+  );
+  const canManage = hasHierarchyAuthority || hasAnyDepartmentAuthority;
   const [uploadOpen, setUploadOpen] = useState(false);
 
   const { data, isLoading } = useQuery({

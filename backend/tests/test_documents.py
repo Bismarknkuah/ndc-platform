@@ -201,3 +201,80 @@ def test_authority_can_delete_document(chairman_client, national_unit):
 
     follow_up = chairman_client.get(f"/api/v1/documents/{created['id']}/")
     assert follow_up.status_code == 404
+
+
+def test_department_head_without_hierarchy_manage_can_upload_documents(
+    national_unit, communications_department
+):
+    """The actual fix: a department head (Communications Director,
+    holding only messaging.broadcast.downward, not hierarchy.manage)
+    can now upload documents for their own unit - previously they
+    couldn't upload anything at all despite being a real executive."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.departments.documents import DepartmentAssignment
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Communications Director",
+        code="communications_director_doc_test",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["messaging.broadcast.downward"],
+    )
+    director = User(
+        email="comms-doc-test@example.com",
+        phone_number="0244000083",
+        first_name="Test",
+        last_name="Director",
+        membership_id="NDC-TEST-000083",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+    DepartmentAssignment.objects.create(
+        user=director,
+        department=communications_department,
+        organizational_unit=national_unit,
+        position="HEAD",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.post(
+        "/api/v1/documents/",
+        {
+            "title": "Press Kit",
+            "category": "OTHER",
+            "organizational_unit_id": str(national_unit.id),
+            "file_base64": _FAKE_FILE,
+            "file_name": "press-kit.pdf",
+            "mime_type": "application/pdf",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+
+def test_regular_member_still_cannot_upload_documents_via_department_path(
+    auth_client, national_unit
+):
+    """Confirms the fix is a real, bounded addition, not a general
+    loosening - a member with no department authority at all is still
+    correctly rejected."""
+    response = auth_client.post(
+        "/api/v1/documents/",
+        {
+            "title": "Should Fail",
+            "category": "OTHER",
+            "organizational_unit_id": str(national_unit.id),
+            "file_base64": _FAKE_FILE,
+            "file_name": "test.pdf",
+            "mime_type": "application/pdf",
+        },
+        format="json",
+    )
+    assert response.status_code == 403

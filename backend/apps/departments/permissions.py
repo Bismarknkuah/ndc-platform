@@ -17,6 +17,29 @@ def get_authority_units(user, department):
     return [a.organizational_unit for a in assignments]
 
 
+def has_any_department_authority(user, target_unit) -> bool:
+    """
+    True if `user` holds HEAD/DEPUTY_HEAD in *any* department at
+    `target_unit` or an ancestor of it - not scoped to one specific
+    department like has_department_authority above. Exists for actions
+    where tracking which department an item belongs to isn't the point
+    (uploading a document or media asset doesn't need a department
+    field the way a departmental meeting does), but a real department
+    head - Communications Director being the clearest case - genuinely
+    should be able to act within their own unit without also needing
+    the broader hierarchy.manage a Chairman carries.
+    """
+    if user.is_superadmin:
+        return True
+    assignments = DepartmentAssignment.objects(
+        user=user, is_active=True, position__in=AUTHORITY_POSITIONS
+    )
+    for assignment in assignments:
+        if assignment.organizational_unit.is_same_or_ancestor_of(target_unit):
+            return True
+    return False
+
+
 def has_department_authority(user, department, target_unit) -> bool:
     """
     True if `user` may manage department assignments / assign tasks for
