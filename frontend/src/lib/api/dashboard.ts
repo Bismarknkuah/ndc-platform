@@ -117,6 +117,14 @@ export interface JurisdictionSummary {
   requires_attention: number;
 }
 
+export interface RoleInsight {
+  widget: "secretary" | "wing";
+  title: string;
+  stats: DepartmentInsightStat[];
+  upcoming_meetings?: { id: string; title: string; scheduled_start: string }[];
+  note?: string;
+}
+
 export interface DashboardPayload {
   profile: User;
   unread_notification_count: number;
@@ -128,6 +136,7 @@ export interface DashboardPayload {
   upcoming_events?: DashboardEvent[];
   finance_summary?: FinanceSummary;
   jurisdiction_summary?: JurisdictionSummary;
+  role_insight?: RoleInsight;
 }
 
 export async function fetchDashboard(): Promise<DashboardPayload> {

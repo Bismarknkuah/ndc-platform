@@ -49,8 +49,6 @@ BASE_ROLES = [
             "messaging.broadcast.downward",
             "messaging.report.upward",
             "meetings.call",
-            "hierarchy.manage_roles",
-            "messaging.broadcast.downward",
             "meetings.call_all_members",
             "audit.view",
             "analytics.ground_intelligence",
@@ -197,7 +195,7 @@ BASE_ROLES = [
         "code": "regional_secretary",
         "name": "Regional Secretary",
         "scope": "REGIONAL",
-        "permissions": ["hierarchy.manage", "messaging.report.upward"],
+        "permissions": ["messaging.report.upward", "meetings.call"],
     },
     # Main chain - Constituency
     {

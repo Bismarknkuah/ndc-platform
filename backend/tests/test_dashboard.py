@@ -250,3 +250,171 @@ def test_dashboard_teams_led_falls_back_to_generic_insight_for_unmapped_departme
     assert team["insight"]["widget"] == "generic"
     stat_labels = [s["label"] for s in team["insight"]["stats"]]
     assert "Team Size" in stat_labels
+
+
+def test_secretary_gets_real_meetings_and_reports_insight_not_jurisdiction_rollup(
+    branch_unit,
+):
+    """The actual bug this addresses: Secretary is meant to be the
+    administrative engine (recording minutes, correspondence), not
+    political leadership - they must not get the full jurisdiction
+    rollup a Chairman gets, but they also should not get nothing. This
+    confirms they get their own real, narrow widget instead."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.messaging.documents import Meeting
+    from rest_framework.test import APIClient
+    import datetime
+
+    role = Role.objects.create(
+        name="Branch Secretary",
+        code="branch_secretary",
+        scope="BRANCH",
+        is_executive=True,
+        permissions=["messaging.report.upward", "meetings.call"],
+    )
+    secretary = User(
+        email="secretary-dashboard@example.com",
+        phone_number="0244000090",
+        first_name="Test",
+        last_name="Secretary",
+        membership_id="NDC-TEST-000090",
+        organizational_unit=branch_unit,
+        role=role,
+    )
+    secretary.set_password("StrongPass123!")
+    secretary.save()
+
+    Meeting.objects.create(
+        title="Branch Executive Meeting",
+        meeting_type="MEETING",
+        target_unit=branch_unit,
+        host=secretary,
+        scheduled_start=datetime.datetime.utcnow() + datetime.timedelta(days=2),
+        scheduled_end=datetime.datetime.utcnow() + datetime.timedelta(days=2, hours=1),
+        meeting_url="https://meet.jit.si/test",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(secretary)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" not in body
+    assert body["role_insight"]["widget"] == "secretary"
+    assert body["role_insight"]["stats"][0]["value"] == 1
+    assert (
+        body["role_insight"]["upcoming_meetings"][0]["title"]
+        == "Branch Executive Meeting"
+    )
+
+
+def test_regional_secretary_no_longer_gets_broad_jurisdiction_oversight(
+    regional_unit,
+):
+    """Confirms the actual permission fix: regional_secretary previously
+    carried hierarchy.manage (inconsistent with constituency_secretary
+    and branch_secretary, both correctly narrow), which meant a
+    Regional Secretary got the full jurisdiction rollup a Regional
+    Chairman gets. This role must now match the other Secretary levels."""
+    from apps.core.management.commands.seed_platform import BASE_ROLES
+
+    regional_secretary_def = next(
+        r for r in BASE_ROLES if r["code"] == "regional_secretary"
+    )
+    assert "hierarchy.manage" not in regional_secretary_def["permissions"]
+
+
+def test_youth_wing_organizer_gets_real_wing_insight_not_jurisdiction_rollup():
+    """National Youth Organizer's unit is the Youth Wing auxiliary
+    structure, not the geographic chain - confirms they get a real,
+    honestly-scoped wing widget rather than an empty or misleading
+    jurisdiction rollup."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.hierarchy.documents import OrganizationalUnit
+    from rest_framework.test import APIClient
+
+    national_unit = OrganizationalUnit.objects.create(
+        name="National Test", code="ndc-national-wing-test", unit_type="NATIONAL"
+    )
+    youth_wing = OrganizationalUnit.objects.create(
+        name="Youth Wing Test",
+        code="ndc-youth-wing-test",
+        unit_type="YOUTH_WING",
+        parent=national_unit,
+    )
+    role = Role.objects.create(
+        name="National Youth Organizer",
+        code="national_youth_organizer",
+        scope="YOUTH_WING",
+        is_executive=True,
+        permissions=["hierarchy.manage", "messaging.broadcast.downward"],
+    )
+    organizer = User(
+        email="youth-organizer-test@example.com",
+        phone_number="0244000089",
+        first_name="Test",
+        last_name="Youth",
+        membership_id="NDC-TEST-000089",
+        organizational_unit=youth_wing,
+        role=role,
+    )
+    organizer.set_password("StrongPass123!")
+    organizer.save()
+
+    client = APIClient()
+    tokens = issue_token_pair(organizer)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role_insight"]["widget"] == "wing"
+    assert body["role_insight"]["title"] == "Youth Wing Overview"
+
+
+def test_ordinary_member_and_broad_executive_get_no_role_insight_clutter():
+    """A Chairman already gets the richer jurisdiction rollup - the
+    role_insight widget must not also appear and clutter their
+    dashboard with something narrower and less useful."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.hierarchy.documents import OrganizationalUnit
+    from rest_framework.test import APIClient
+
+    unit = OrganizationalUnit.objects.create(
+        name="Chairman Test Unit",
+        code="ndc-chairman-insight-test",
+        unit_type="NATIONAL",
+    )
+    role = Role.objects.create(
+        name="National Chairman",
+        code="national_chairman_insight_test",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["hierarchy.manage"],
+    )
+    chairman = User(
+        email="chairman-insight-test@example.com",
+        phone_number="0244000088",
+        first_name="Test",
+        last_name="Chairman",
+        membership_id="NDC-TEST-000088",
+        organizational_unit=unit,
+        role=role,
+    )
+    chairman.set_password("StrongPass123!")
+    chairman.save()
+
+    client = APIClient()
+    tokens = issue_token_pair(chairman)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" in body
+    assert "role_insight" not in body

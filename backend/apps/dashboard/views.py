@@ -10,6 +10,7 @@ from apps.accounts.serializers import UserSerializer
 from apps.analytics.services import compute_membership_analytics
 from apps.complaints.documents import Complaint
 from apps.dashboard.department_insights import compute_department_insight
+from apps.dashboard.role_insights import compute_role_insight
 from apps.departments.documents import DepartmentAssignment, TaskAssignment
 from apps.discipline.documents import DisciplinaryCase
 from apps.elections.documents import Election
@@ -264,5 +265,14 @@ class DashboardView(APIView):
         jurisdiction_summary = _jurisdiction_summary(user)
         if jurisdiction_summary:
             payload["jurisdiction_summary"] = jurisdiction_summary
+
+        # Role-specific widget for officers who are neither a
+        # department head nor a broad jurisdiction executive
+        # (Secretary track, Youth/Women Wing organizers) - deliberately
+        # None for everyone else so this never clutters a Chairman's or
+        # ordinary member's dashboard with something irrelevant.
+        role_insight = compute_role_insight(user)
+        if role_insight:
+            payload["role_insight"] = role_insight
 
         return Response(payload)

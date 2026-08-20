@@ -25,6 +25,7 @@ import { ExecutiveAiPanel } from "@/components/dashboard/executive-ai-panel";
 import { DuesPaymentCard } from "@/components/dashboard/dues-payment-card";
 import { DepartmentQuickActions } from "@/components/dashboard/department-quick-actions";
 import { MyDirectivesCard } from "@/components/dashboard/my-directives-card";
+import { RoleInsightCard } from "@/components/dashboard/role-insight-card";
 import { useViewModeStore } from "@/stores/view-mode-store";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -100,6 +101,7 @@ export default function DashboardPage() {
   const jurisdictionSummary = inMemberView ? undefined : data.jurisdiction_summary;
   const teamsLed = inMemberView ? undefined : data.teams_led;
   const financeSummary = inMemberView ? undefined : data.finance_summary;
+  const roleInsight = inMemberView ? undefined : data.role_insight;
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,6 +133,8 @@ export default function DashboardPage() {
           <DuesPaymentCard />
         </Suspense>
       )}
+
+      {roleInsight && <RoleInsightCard insight={roleInsight} />}
 
       <MyDirectivesCard />
 
