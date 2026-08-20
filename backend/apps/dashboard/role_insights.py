@@ -101,6 +101,41 @@ def _wing_insight(user, unit_type: str) -> dict:
     }
 
 
+def _auditor_insight(user) -> dict:
+    """Internal Auditor has no hierarchy.manage, so unlike a Treasurer
+    they get no jurisdiction rollup at all, and finance_summary alone
+    (transaction totals) doesn't reflect their actual job, which is
+    compliance and oversight of what's happening across the system, not
+    managing a budget. AuditLog is genuinely global/unscoped (see
+    apps.core.audit.AuditLog and apps.core.views.AuditLogListView), so
+    unlike every other widget here this one is deliberately not
+    filtered to a unit subtree."""
+    from apps.core.audit import AuditLog
+
+    week_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    recent = AuditLog.objects.order_by("-created_at")
+
+    return {
+        "widget": "auditor",
+        "title": "Audit Overview",
+        "stats": [
+            {
+                "label": "Actions (Last 7 Days)",
+                "value": recent.filter(created_at__gte=week_ago).count(),
+            },
+            {"label": "Total Logged Actions", "value": recent.count()},
+        ],
+        "recent_actions": [
+            {
+                "action": log.action,
+                "actor_email": log.actor_email,
+                "created_at": log.created_at.isoformat(),
+            }
+            for log in recent[:5]
+        ],
+    }
+
+
 def compute_role_insight(user) -> dict | None:
     """Returns a role-specific widget for the handful of roles that
     need one, or None for everyone else (ordinary members get nothing
@@ -113,4 +148,6 @@ def compute_role_insight(user) -> dict | None:
         return _secretary_insight(user)
     if code in WING_ROLE_UNIT_TYPES:
         return _wing_insight(user, WING_ROLE_UNIT_TYPES[code])
+    if code == "internal_auditor":
+        return _auditor_insight(user)
     return None

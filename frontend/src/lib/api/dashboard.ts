@@ -117,11 +117,18 @@ export interface JurisdictionSummary {
   requires_attention: number;
 }
 
+export interface RoleInsightAction {
+  action: string;
+  actor_email: string;
+  created_at: string;
+}
+
 export interface RoleInsight {
-  widget: "secretary" | "wing";
+  widget: "secretary" | "wing" | "auditor";
   title: string;
   stats: DepartmentInsightStat[];
   upcoming_meetings?: { id: string; title: string; scheduled_start: string }[];
+  recent_actions?: RoleInsightAction[];
   note?: string;
 }
 

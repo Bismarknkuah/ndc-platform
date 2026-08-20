@@ -418,3 +418,64 @@ def test_ordinary_member_and_broad_executive_get_no_role_insight_clutter():
     body = response.json()
     assert "jurisdiction_summary" in body
     assert "role_insight" not in body
+
+
+def test_internal_auditor_gets_real_audit_widget_not_jurisdiction_rollup():
+    """Internal Auditor has no hierarchy.manage, so unlike a Treasurer
+    they never get the jurisdiction rollup - confirms they get a real,
+    genuinely relevant audit-activity widget instead of nothing."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.core.audit import log_action
+    from apps.hierarchy.documents import OrganizationalUnit
+    from rest_framework.test import APIClient
+
+    unit = OrganizationalUnit.objects.create(
+        name="National Test Auditor",
+        code="ndc-national-auditor-test",
+        unit_type="NATIONAL",
+    )
+    role = Role.objects.create(
+        name="Internal Auditor",
+        code="internal_auditor",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["finance.view", "audit.view"],
+    )
+    auditor = User(
+        email="auditor-dashboard-test@example.com",
+        phone_number="0244000087",
+        first_name="Test",
+        last_name="Auditor",
+        membership_id="NDC-TEST-000087",
+        organizational_unit=unit,
+        role=role,
+    )
+    auditor.set_password("StrongPass123!")
+    auditor.save()
+    log_action(auditor, "test.action.for_dashboard")
+
+    client = APIClient()
+    tokens = issue_token_pair(auditor)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" not in body
+    assert body["role_insight"]["widget"] == "auditor"
+    assert body["role_insight"]["stats"][1]["value"] >= 1
+
+
+def test_election_it_director_gets_real_elections_insight_not_generic_fallback(
+    national_unit,
+):
+    """The IT department code now maps to the real elections insight
+    (the role is literally "Election and IT Director"), rather than the
+    generic team-size fallback every other unmapped department gets."""
+    from apps.departments.documents import Department
+    from apps.dashboard.department_insights import compute_department_insight
+
+    it_department = Department.objects.create(name="IT", code="it")
+    insight = compute_department_insight(it_department, national_unit)
+    assert insight["widget"] == "elections"

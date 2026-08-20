@@ -1,10 +1,16 @@
-import { CalendarClock, Users } from "lucide-react";
+import { CalendarClock, ShieldCheck, Users } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RoleInsight } from "@/lib/api/dashboard";
 
+const WIDGET_ICONS = {
+  secretary: CalendarClock,
+  wing: Users,
+  auditor: ShieldCheck,
+} as const;
+
 export function RoleInsightCard({ insight }: { insight: RoleInsight }) {
-  const Icon = insight.widget === "secretary" ? CalendarClock : Users;
+  const Icon = WIDGET_ICONS[insight.widget];
 
   return (
     <Card>
@@ -34,6 +40,20 @@ export function RoleInsightCard({ insight }: { insight: RoleInsight }) {
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(m.scheduled_start), "MMM d, h:mm a")}
                   </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {insight.recent_actions && insight.recent_actions.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Recent activity</p>
+            <div className="flex flex-col gap-1.5">
+              {insight.recent_actions.map((a, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <span className="font-mono text-xs">{a.action}</span>
+                  <span className="text-xs text-muted-foreground">{a.actor_email}</span>
                 </div>
               ))}
             </div>

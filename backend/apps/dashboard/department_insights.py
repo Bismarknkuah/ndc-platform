@@ -173,6 +173,11 @@ DEPARTMENT_INSIGHT_BUILDERS = {
     "legal-affairs": _legal_affairs_insight,
     "womens-affairs": _welfare_insight,
     "youth-affairs": _events_insight,
+    # The Election IT Director role (election_it_director) is a
+    # combined Elections + IT function - the elections builder is
+    # genuinely more relevant to their real work than the generic
+    # team-size fallback every other unmapped department gets.
+    "it": _elections_insight,
 }
 
 
