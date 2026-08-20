@@ -34,12 +34,15 @@ export async function fetchGroundIntelligence(unitId: string): Promise<GroundInt
   return data;
 }
 
+export type AiResponseSource = "ai" | "rule_based";
+
 export async function fetchGroundBriefing(
   unitId: string,
-): Promise<{ briefing: string; ground_intelligence: GroundIntelligence }> {
+): Promise<{ briefing: string; ground_intelligence: GroundIntelligence; source: AiResponseSource }> {
   const { data } = await apiClient.post<{
     briefing: string;
     ground_intelligence: GroundIntelligence;
+    source: AiResponseSource;
   }>(`/executive-ai/ground-briefing/${unitId}/`);
   return data;
 }
@@ -47,18 +50,20 @@ export async function fetchGroundBriefing(
 export async function fetchOfficialReport(
   unitId: string,
   includeNames: boolean,
-): Promise<{ report: string; include_names: boolean }> {
-  const { data } = await apiClient.post<{ report: string; include_names: boolean }>(
-    `/executive-ai/official-report/${unitId}/?include_names=${includeNames}`,
-  );
+): Promise<{ report: string; include_names: boolean; source: AiResponseSource }> {
+  const { data } = await apiClient.post<{
+    report: string;
+    include_names: boolean;
+    source: AiResponseSource;
+  }>(`/executive-ai/official-report/${unitId}/?include_names=${includeNames}`);
   return data;
 }
 
 export async function fetchSpeech(
   unitId: string,
   styleInstructions: string,
-): Promise<{ speech: string }> {
-  const { data } = await apiClient.post<{ speech: string }>(
+): Promise<{ speech: string; source: AiResponseSource }> {
+  const { data } = await apiClient.post<{ speech: string; source: AiResponseSource }>(
     `/executive-ai/speech/${unitId}/`,
     { style_instructions: styleInstructions },
   );

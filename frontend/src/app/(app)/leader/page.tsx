@@ -24,6 +24,8 @@ import { ForbiddenState } from "@/components/shared/forbidden-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AssignDirectivePanel } from "@/components/dashboard/assign-directive-panel";
 import * as groundIntelligenceApi from "@/lib/api/ground-intelligence";
+import type { AiResponseSource } from "@/lib/api/ground-intelligence";
+import { Badge } from "@/components/ui/badge";
 import type { GroundIntelligence } from "@/lib/api/ground-intelligence";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -89,13 +91,29 @@ function downloadText(filenamePrefix: string, unitName: string, content: string)
   URL.revokeObjectURL(url);
 }
 
+function SourceBadge({ source }: { source: AiResponseSource }) {
+  return source === "ai" ? (
+    <Badge variant="outline" className="text-xs">
+      AI Generated
+    </Badge>
+  ) : (
+    <Badge variant="secondary" className="text-xs">
+      Data Summary (AI unavailable)
+    </Badge>
+  );
+}
+
 function GroundIntelligencePanel() {
   const user = useAuthStore((s) => s.user);
   const isTopTier = hasPermission(user, "analytics.ground_intelligence");
   const [unit, setUnit] = useState<{ id: string; name: string } | null>(null);
-  const [briefing, setBriefing] = useState<string | null>(null);
-  const [officialReport, setOfficialReport] = useState<string | null>(null);
-  const [speech, setSpeech] = useState<string | null>(null);
+  const [briefing, setBriefing] = useState<{ text: string; source: AiResponseSource } | null>(
+    null,
+  );
+  const [officialReport, setOfficialReport] = useState<
+    { text: string; source: AiResponseSource } | null
+  >(null);
+  const [speech, setSpeech] = useState<{ text: string; source: AiResponseSource } | null>(null);
   const [speechStyle, setSpeechStyle] = useState("");
 
   const { data: intelligence, isLoading: isLoadingIntelligence } = useQuery({
@@ -106,7 +124,7 @@ function GroundIntelligencePanel() {
 
   const briefingMutation = useMutation({
     mutationFn: () => groundIntelligenceApi.fetchGroundBriefing(unit!.id),
-    onSuccess: (result) => setBriefing(result.briefing),
+    onSuccess: (result) => setBriefing({ text: result.briefing, source: result.source }),
     onError: (error: ApiError) =>
       toast.error(error.message || "Could not generate the ground briefing."),
   });
@@ -114,14 +132,14 @@ function GroundIntelligencePanel() {
   const officialReportMutation = useMutation({
     mutationFn: (includeNames: boolean) =>
       groundIntelligenceApi.fetchOfficialReport(unit!.id, includeNames),
-    onSuccess: (result) => setOfficialReport(result.report),
+    onSuccess: (result) => setOfficialReport({ text: result.report, source: result.source }),
     onError: (error: ApiError) =>
       toast.error(error.message || "Could not generate the official report."),
   });
 
   const speechMutation = useMutation({
     mutationFn: () => groundIntelligenceApi.fetchSpeech(unit!.id, speechStyle),
-    onSuccess: (result) => setSpeech(result.speech),
+    onSuccess: (result) => setSpeech({ text: result.speech, source: result.source }),
     onError: (error: ApiError) => toast.error(error.message || "Could not generate the speech."),
   });
 
@@ -200,13 +218,16 @@ function GroundIntelligencePanel() {
           {briefing && intelligence && (
             <Card className="border-primary/20 bg-primary/[0.03]">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm">Briefing for {unit.name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm">Briefing for {unit.name}</CardTitle>
+                  <SourceBadge source={briefing.source} />
+                </div>
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      navigator.clipboard.writeText(briefing);
+                      navigator.clipboard.writeText(briefing.text);
                       toast.success("Copied to clipboard.");
                     }}
                   >
@@ -216,7 +237,7 @@ function GroundIntelligencePanel() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      downloadReport(unit.name, briefing, intelligence);
+                      downloadReport(unit.name, briefing.text, intelligence);
                       toast.success("Report downloaded.");
                     }}
                   >
@@ -225,7 +246,7 @@ function GroundIntelligencePanel() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">{briefing}</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{briefing.text}</div>
               </CardContent>
             </Card>
           )}
@@ -266,18 +287,21 @@ function GroundIntelligencePanel() {
             {officialReport && (
               <Card className="border-primary/20 bg-primary/[0.03]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm">Official Report</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm">Official Report</CardTitle>
+                    <SourceBadge source={officialReport.source} />
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => downloadText("official-report", unit.name, officialReport)}
+                    onClick={() => downloadText("official-report", unit.name, officialReport.text)}
                   >
                     <Download className="size-3.5" /> Download
                   </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {officialReport}
+                    {officialReport.text}
                   </div>
                 </CardContent>
               </Card>
@@ -311,17 +335,20 @@ function GroundIntelligencePanel() {
             {speech && (
               <Card className="border-primary/20 bg-primary/[0.03]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm">Speech Draft</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm">Speech Draft</CardTitle>
+                    <SourceBadge source={speech.source} />
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => downloadText("speech", unit.name, speech)}
+                    onClick={() => downloadText("speech", unit.name, speech.text)}
                   >
                     <Download className="size-3.5" /> Download
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{speech}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{speech.text}</div>
                 </CardContent>
               </Card>
             )}

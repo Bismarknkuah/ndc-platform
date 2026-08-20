@@ -9,6 +9,14 @@ from apps.accounts.documents import User
 from apps.core.audit import log_action
 from apps.core.exceptions import APIError
 from apps.core.pagination import paginate_queryset
+from apps.executive_ai.fallback import (
+    fallback_draft_broadcast,
+    fallback_ground_briefing,
+    fallback_meeting_agenda,
+    fallback_official_report,
+    fallback_speech,
+    fallback_summarize_pending_items,
+)
 from apps.executive_ai.services import (
     draft_broadcast,
     generate_meeting_agenda,
@@ -84,16 +92,19 @@ class DraftBroadcastView(APIView):
         data = serializer.validated_data
 
         draft = draft_broadcast(request.user, data["topic"], data.get("tone", "formal"))
+        source = "ai"
         if draft is None:
-            raise APIError(
-                "The AI assistant isn't available right now (not configured, "
-                "or the request failed). Try again shortly, or draft the "
-                "broadcast yourself.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            unit_name = (
+                request.user.organizational_unit.name
+                if request.user.organizational_unit
+                else "the Party"
             )
+            draft = fallback_draft_broadcast(
+                unit_name, data["topic"], data.get("tone", "formal")
+            )
+            source = "rule_based"
         log_action(request.user, "executive_ai.draft_broadcast", request=request)
-        return Response({"draft": draft})
+        return Response({"draft": draft, "source": source})
 
 
 class SummarizePendingItemsView(APIView):
@@ -115,14 +126,12 @@ class SummarizePendingItemsView(APIView):
             raise APIError("jurisdiction_summary is required.", code="invalid_input")
 
         summary = summarize_pending_items(request.user, jurisdiction_summary)
+        source = "ai"
         if summary is None:
-            raise APIError(
-                "The AI assistant isn't available right now.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+            summary = fallback_summarize_pending_items(jurisdiction_summary)
+            source = "rule_based"
         log_action(request.user, "executive_ai.summarize_pending", request=request)
-        return Response({"summary": summary})
+        return Response({"summary": summary, "source": source})
 
 
 class MeetingAgendaRequestSerializer(serializers.Serializer):
@@ -149,14 +158,19 @@ class GenerateMeetingAgendaView(APIView):
         agenda = generate_meeting_agenda(
             request.user, data["meeting_topic"], data.get("context", "")
         )
+        source = "ai"
         if agenda is None:
-            raise APIError(
-                "The AI assistant isn't available right now.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            unit_name = (
+                request.user.organizational_unit.name
+                if request.user.organizational_unit
+                else "the Party"
             )
+            agenda = fallback_meeting_agenda(
+                unit_name, data["meeting_topic"], data.get("context", "")
+            )
+            source = "rule_based"
         log_action(request.user, "executive_ai.meeting_agenda", request=request)
-        return Response({"agenda": agenda})
+        return Response({"agenda": agenda, "source": source})
 
 
 class GroundBriefingView(APIView):
@@ -198,15 +212,17 @@ class GroundBriefingView(APIView):
 
         ground_intelligence = compute_ground_intelligence(unit)
         briefing = ground_situation_briefing(unit.name, ground_intelligence)
+        source = "ai"
         if briefing is None:
-            raise APIError(
-                "The AI assistant isn't available right now.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+            briefing = fallback_ground_briefing(unit.name, ground_intelligence)
+            source = "rule_based"
         log_action(request.user, "executive_ai.ground_briefing", request=request)
         return Response(
-            {"briefing": briefing, "ground_intelligence": ground_intelligence}
+            {
+                "briefing": briefing,
+                "ground_intelligence": ground_intelligence,
+                "source": source,
+            }
         )
 
 
@@ -472,19 +488,21 @@ class OfficialReportView(APIView):
 
         ground_intelligence = compute_ground_intelligence(unit)
         report = generate_official_report(unit.name, ground_intelligence, include_names)
+        source = "ai"
         if report is None:
-            raise APIError(
-                "The AI assistant isn't available right now.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            report = fallback_official_report(
+                unit.name, ground_intelligence, include_names
             )
+            source = "rule_based"
         log_action(
             request.user,
             "executive_ai.official_report.generate",
             request=request,
             description=f"include_names={include_names}",
         )
-        return Response({"report": report, "include_names": include_names})
+        return Response(
+            {"report": report, "include_names": include_names, "source": source}
+        )
 
 
 class SpeechRequestSerializer(serializers.Serializer):
@@ -531,11 +549,9 @@ class SpeechView(APIView):
         style_instructions = request.data.get("style_instructions", "")
         ground_intelligence = compute_ground_intelligence(unit)
         speech = generate_speech(unit.name, ground_intelligence, style_instructions)
+        source = "ai"
         if speech is None:
-            raise APIError(
-                "The AI assistant isn't available right now.",
-                code="ai_unavailable",
-                http_status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+            speech = fallback_speech(unit.name, ground_intelligence, style_instructions)
+            source = "rule_based"
         log_action(request.user, "executive_ai.speech.generate", request=request)
-        return Response({"speech": speech})
+        return Response({"speech": speech, "source": source})

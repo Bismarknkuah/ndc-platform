@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Bot, Copy, Loader2, Megaphone, ClipboardList, CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,21 +18,42 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import * as executiveAiApi from "@/lib/api/executive-ai";
+import type { AiResponseSource } from "@/lib/api/executive-ai";
 import type { JurisdictionSummary } from "@/lib/api/dashboard";
 import { ApiError } from "@/lib/api/client";
 
-function ResultView({ text }: { text: string }) {
+interface AiResult {
+  text: string;
+  source: AiResponseSource;
+}
+
+function SourceBadge({ source }: { source: AiResponseSource }) {
+  return source === "ai" ? (
+    <Badge variant="outline" className="text-xs">
+      AI Generated
+    </Badge>
+  ) : (
+    <Badge variant="secondary" className="text-xs">
+      Data Summary (AI unavailable)
+    </Badge>
+  );
+}
+
+function ResultView({ result }: { result: AiResult }) {
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <SourceBadge source={result.source} />
+      </div>
       <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm">
-        {text}
+        {result.text}
       </div>
       <Button
         variant="outline"
         size="sm"
         className="w-fit"
         onClick={() => {
-          navigator.clipboard.writeText(text);
+          navigator.clipboard.writeText(result.text);
           toast.success("Copied to clipboard.");
         }}
       >
@@ -49,7 +71,7 @@ function DraftBroadcastDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const [topic, setTopic] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<AiResult | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => executiveAiApi.draftBroadcast(topic),
@@ -85,7 +107,7 @@ function DraftBroadcastDialog({
               placeholder="e.g. Reminder about Saturday's membership drive"
             />
           </div>
-          {result && <ResultView text={result} />}
+          {result && <ResultView result={result} />}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -109,7 +131,7 @@ function MeetingAgendaDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const [topic, setTopic] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<AiResult | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => executiveAiApi.generateMeetingAgenda(topic),
@@ -144,7 +166,7 @@ function MeetingAgendaDialog({
               placeholder="e.g. Quarterly budget review"
             />
           </div>
-          {result && <ResultView text={result} />}
+          {result && <ResultView result={result} />}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -169,7 +191,7 @@ function SummarizePendingDialog({
   onOpenChange: (v: boolean) => void;
   jurisdictionSummary: JurisdictionSummary;
 }) {
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<AiResult | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => executiveAiApi.summarizePendingItems(jurisdictionSummary),
@@ -194,7 +216,7 @@ function SummarizePendingDialog({
           </DialogDescription>
         </DialogHeader>
         {result ? (
-          <ResultView text={result} />
+          <ResultView result={result} />
         ) : (
           <p className="text-sm text-muted-foreground">
             Click Generate to get a prioritized summary of what needs attention.
@@ -254,7 +276,7 @@ export function ExecutiveAiPanel({
         </CardTitle>
         <CardDescription>
           Drafts and suggestions to review before you act. Nothing here is sent or saved
-          automatically.
+          automatically. Falls back to a real data-driven summary if AI isn&apos;t configured.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -282,3 +282,59 @@ def test_speech_never_includes_reporter_names_regardless_of_style(
     sent_payload = str(mock_post.call_args.kwargs["json"])
     assert member_user.full_name not in sent_payload
     assert "Bold and energetic" in sent_payload
+
+
+def test_ground_briefing_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client, member_user, branch_unit, national_unit
+):
+    """The real change: this used to return 503 when no API key was
+    set. It now falls back to a genuine, working data-driven summary
+    instead, built from the exact same real complaint data - zero
+    external dependency required."""
+    settings.ANTHROPIC_API_KEY = ""
+    _make_complaint(member_user, branch_unit, subject="Water shortage in the district")
+
+    response = chairman_client.post(
+        f"/api/v1/executive-ai/ground-briefing/{national_unit.id}/"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Water shortage in the district" in body["briefing"]
+
+
+def test_official_report_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client, member_user, branch_unit, national_unit
+):
+    settings.ANTHROPIC_API_KEY = ""
+    _make_complaint(member_user, branch_unit, subject="Road repair needed")
+
+    response = chairman_client.post(
+        f"/api/v1/executive-ai/official-report/{national_unit.id}/?include_names=false"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Road repair needed" in body["report"]
+    # Even in rule-based mode, include_names=false must still withhold
+    # the reporter's real name - the fallback respects the same
+    # anonymity contract as the AI version.
+    assert member_user.full_name not in body["report"]
+
+
+def test_speech_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client, member_user, branch_unit, national_unit
+):
+    settings.ANTHROPIC_API_KEY = ""
+    _make_complaint(member_user, branch_unit, subject="Community borehole needed")
+
+    response = chairman_client.post(
+        f"/api/v1/executive-ai/speech/{national_unit.id}/",
+        {"style_instructions": "warm and direct"},
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Community borehole needed" in body["speech"]
+    assert member_user.full_name not in body["speech"]

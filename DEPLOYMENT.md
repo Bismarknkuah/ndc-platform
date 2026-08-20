@@ -128,6 +128,21 @@ tab and redeploy, no code change required.
 `ANTHROPIC_API_KEY` is still the actual blocker if AI features show
 "unavailable" - this setting alone does nothing without a real key set.
 
+**Every Executive AI leadership tool now has a genuine rule-based
+fallback** (`apps/executive_ai/fallback.py`) that activates
+automatically whenever `ANTHROPIC_API_KEY` is missing or invalid -
+Ground Briefing, Official Report, Speech, Draft Broadcast, Summarize
+Pending Items, and Meeting Agenda all produce a real, useful,
+data-driven result built from actual party data instead of a 503, with
+zero external dependency. Every response is honestly labeled
+`source: "ai"` or `source: "rule_based"` (shown as a badge in the UI)
+so it is never presented as if it came from Claude when it did not.
+The moment a real API key is configured, every one of these switches
+back to the real AI version automatically - nothing else to change.
+The general-purpose chatbot and AI-assisted reporting do not have this
+fallback (open-ended chat cannot be meaningfully rule-based), and will
+still return "unavailable" without a real key.
+
 Two variables that came up in conversation but were deliberately not
 added: `ASR_PROVIDER` has no corresponding feature anywhere in this
 codebase (no speech recognition exists), so setting it would do

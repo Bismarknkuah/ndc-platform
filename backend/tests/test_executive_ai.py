@@ -42,13 +42,24 @@ def test_draft_broadcast_forbidden_for_ordinary_member(
     mock_post.assert_not_called()
 
 
-def test_draft_broadcast_returns_503_when_unconfigured(settings, chairman_client):
+def test_draft_broadcast_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client
+):
+    """The real change: this used to return 503 when no API key was
+    configured. It now falls back to a genuine, working rule-based
+    draft instead, clearly labeled with source="rule_based" so the
+    caller can distinguish it from real AI output - it works out of
+    the box with zero external dependency."""
     settings.ANTHROPIC_API_KEY = ""
     response = chairman_client.post(
-        "/api/v1/executive-ai/draft-broadcast/", {"topic": "Test"}, format="json"
+        "/api/v1/executive-ai/draft-broadcast/",
+        {"topic": "Annual General Meeting on Saturday"},
+        format="json",
     )
-    assert response.status_code == 503
-    assert response.json()["error"]["code"] == "ai_unavailable"
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Annual General Meeting on Saturday" in body["draft"]
 
 
 @patch("requests.post")
@@ -113,3 +124,42 @@ def test_meeting_agenda_forbidden_for_ordinary_member(mock_post, settings, auth_
     )
     assert response.status_code == 403
     mock_post.assert_not_called()
+
+
+def test_summarize_pending_items_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client
+):
+    settings.ANTHROPIC_API_KEY = ""
+    response = chairman_client.post(
+        "/api/v1/executive-ai/summarize-pending/",
+        {
+            "jurisdiction_summary": {
+                "organizational_unit": {"name": "Test Region"},
+                "pending_complaints": 3,
+                "pending_discipline_cases": 1,
+                "pending_welfare_requests": 2,
+                "total_members": 500,
+            }
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Test Region" in body["summary"]
+    assert "3" in body["summary"]
+
+
+def test_meeting_agenda_falls_back_to_rule_based_when_unconfigured(
+    settings, chairman_client
+):
+    settings.ANTHROPIC_API_KEY = ""
+    response = chairman_client.post(
+        "/api/v1/executive-ai/meeting-agenda/",
+        {"meeting_topic": "Budget Review"},
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "rule_based"
+    assert "Budget Review" in body["agenda"]
