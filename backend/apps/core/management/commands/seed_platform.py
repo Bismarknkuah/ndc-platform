@@ -109,6 +109,32 @@ BASE_ROLES = [
         "permissions": ["messaging.broadcast.downward"],
     },
     {
+        # The constitution names a distinct communications officer at
+        # every level below National too (Regional/Constituency
+        # Propaganda-Communication Secretary, Branch Communication
+        # Officer) - previously missing entirely, unlike Secretary
+        # which already had all four levels. Narrow on purpose, same
+        # single permission as the National role - a real department
+        # head appointment (see demo_definitions below), not a
+        # jurisdiction-wide executive.
+        "code": "regional_communications_officer",
+        "name": "Regional Communications Officer",
+        "scope": "REGIONAL",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "constituency_communications_officer",
+        "name": "Constituency Communications Officer",
+        "scope": "CONSTITUENCY",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "branch_communications_officer",
+        "name": "Branch Communications Officer",
+        "scope": "BRANCH",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
         "code": "membership_officer",
         "name": "Membership Officer",
         "scope": "NATIONAL",
@@ -693,6 +719,33 @@ class Command(BaseCommand):
                 "last_name": "Communications Director",
                 "role_code": "communications_director",
                 "unit": national_unit,
+                "department_code": "communications",
+            },
+            {
+                "email": "demo.regionalcomms@ndc.example",
+                "membership_id": "NDC-DEMO-000033",
+                "first_name": "Demo",
+                "last_name": "Regional Communications Officer",
+                "role_code": "regional_communications_officer",
+                "unit": regional_unit,
+                "department_code": "communications",
+            },
+            {
+                "email": "demo.constituencycomms@ndc.example",
+                "membership_id": "NDC-DEMO-000034",
+                "first_name": "Demo",
+                "last_name": "Constituency Communications Officer",
+                "role_code": "constituency_communications_officer",
+                "unit": constituency_unit,
+                "department_code": "communications",
+            },
+            {
+                "email": "demo.branchcomms@ndc.example",
+                "membership_id": "NDC-DEMO-000035",
+                "first_name": "Demo",
+                "last_name": "Branch Communications Officer",
+                "role_code": "branch_communications_officer",
+                "unit": branch_unit,
                 "department_code": "communications",
             },
             {

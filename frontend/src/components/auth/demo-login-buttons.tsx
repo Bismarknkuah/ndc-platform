@@ -87,6 +87,9 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { label: "Functional Committee Chair", email: "demo.committee@ndc.example", icon: ClipboardList, group: "auxiliary" },
 
   { label: "Communications Director", email: "demo.comms@ndc.example", icon: Megaphone, group: "department" },
+  { label: "Regional Communications Officer", email: "demo.regionalcomms@ndc.example", icon: Megaphone, group: "department" },
+  { label: "Constituency Communications Officer", email: "demo.constituencycomms@ndc.example", icon: Megaphone, group: "department" },
+  { label: "Branch Communications Officer", email: "demo.branchcomms@ndc.example", icon: Megaphone, group: "department" },
   { label: "National Treasurer", email: "demo.treasurer@ndc.example", icon: Wallet, group: "department" },
   { label: "Elections Director", email: "demo.elections@ndc.example", icon: Vote, group: "department" },
   { label: "Membership Officer", email: "demo.membership@ndc.example", icon: UserCheck, group: "department" },

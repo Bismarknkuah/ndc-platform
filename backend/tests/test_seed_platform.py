@@ -357,3 +357,51 @@ def test_role_permissions_are_kept_in_sync_on_every_re_run():
     role.reload()
     assert role.permissions == original_permissions
     assert "analytics.ground_intelligence" in role.permissions
+
+
+def test_regional_communications_officer_demo_account_gets_real_communications_insight():
+    """The actual fix: the constitution names a distinct communications
+    officer at every level, but this role previously existed only at
+    National. Confirms the new Regional-level demo account is a real
+    department head who gets the real, already-existing communications
+    insight (broadcast counts) via department_insights - not a
+    generic fallback, and not nothing."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import User
+    from rest_framework.test import APIClient
+
+    call_command("seed_platform")
+
+    officer = User.objects(email="demo.regionalcomms@ndc.example").first()
+    assert officer is not None
+    assert officer.role.code == "regional_communications_officer"
+    assert "hierarchy.manage" not in (officer.role.permissions or [])
+
+    tokens = issue_token_pair(officer)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" not in body
+    team = body["teams_led"][0]
+    assert team["insight"]["widget"] == "communications"
+
+
+def test_branch_communications_officer_demo_account_can_log_in():
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import User
+    from rest_framework.test import APIClient
+
+    call_command("seed_platform")
+
+    officer = User.objects(email="demo.branchcomms@ndc.example").first()
+    assert officer is not None
+    assert officer.role.code == "branch_communications_officer"
+
+    tokens = issue_token_pair(officer)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    response = client.get("/api/v1/auth/me/")
+    assert response.status_code == 200
