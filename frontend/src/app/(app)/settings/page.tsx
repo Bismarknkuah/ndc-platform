@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
+import { SetKioskPinForm } from "@/components/settings/set-kiosk-pin-form";
 import { NotificationPreferencesForm } from "@/components/settings/notification-preferences-form";
 import { AuditLogTab } from "@/components/settings/audit-log-tab";
 import { ThemeSwitcher } from "@/components/layout/theme-switcher";
@@ -53,13 +54,22 @@ export default function SettingsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="security">
+        <TabsContent value="security" className="flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Change Password</CardTitle>
             </CardHeader>
             <CardContent>
               <ChangePasswordForm />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Kiosk Voting PIN</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SetKioskPinForm />
             </CardContent>
           </Card>
         </TabsContent>

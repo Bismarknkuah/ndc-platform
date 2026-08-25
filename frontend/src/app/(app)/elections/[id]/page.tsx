@@ -27,6 +27,9 @@ import { ResultsSummaryChart } from "@/components/elections/results-summary-char
 import { VotingPanel } from "@/components/elections/voting-panel";
 import { ElectorateManager } from "@/components/elections/electorate-manager";
 import { PollingAgentsTab } from "@/components/elections/polling-agents-tab";
+import { KiosksTab } from "@/components/elections/kiosks-tab";
+import { useAuthStore } from "@/stores/auth-store";
+import { hasPermission } from "@/lib/permissions";
 import * as electionsApi from "@/lib/api/elections";
 import { ApiError } from "@/lib/api/client";
 
@@ -42,6 +45,7 @@ export default function ElectionDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
 
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const [submitResultOpen, setSubmitResultOpen] = useState(false);
@@ -153,6 +157,9 @@ export default function ElectionDetailPage() {
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="results">Results & Collation</TabsTrigger>
           <TabsTrigger value="agents">Polling Agents</TabsTrigger>
+          {hasPermission(user, "elections.manage") && (
+            <TabsTrigger value="kiosks">Kiosks</TabsTrigger>
+          )}
           {election.election_type === "PARTY_INTERNAL" && (
             <>
               <TabsTrigger value="electorate">Electorate</TabsTrigger>
@@ -332,6 +339,12 @@ export default function ElectionDetailPage() {
         <TabsContent value="agents">
           <PollingAgentsTab electionId={election.id} />
         </TabsContent>
+
+        {hasPermission(user, "elections.manage") && (
+          <TabsContent value="kiosks">
+            <KiosksTab electionId={election.id} />
+          </TabsContent>
+        )}
 
         {election.election_type === "PARTY_INTERNAL" && (
           <>
