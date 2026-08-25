@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.accounts.documents import User
 from apps.elections.constants import (
+    ELECTION_REQUEST_STATUS_CHOICES,
     ELECTION_STATUS_CHOICES,
     ELECTION_TYPE_CHOICES,
     POLLING_AGENT_ROLE_CHOICES,
@@ -61,6 +62,66 @@ class ElectionSerializer(serializers.Serializer):
             "end_date": instance.end_date.isoformat(),
             "created_at": instance.created_at.isoformat(),
         }
+
+
+class ElectionRequestSerializer(serializers.Serializer):
+    id = serializers.CharField(read_only=True)
+    target_unit_id = serializers.CharField(write_only=True)
+    election_type = serializers.ChoiceField(choices=ELECTION_TYPE_CHOICES)
+    title = serializers.CharField(max_length=200)
+    reason = serializers.CharField()
+    requested_start_date = serializers.DateTimeField(required=False, allow_null=True)
+    requested_end_date = serializers.DateTimeField(required=False, allow_null=True)
+    status = serializers.ChoiceField(
+        choices=ELECTION_REQUEST_STATUS_CHOICES, read_only=True
+    )
+    review_notes = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def validate_target_unit_id(self, value):
+        try:
+            return OrganizationalUnit.objects.get(id=value, is_active=True)
+        except (DoesNotExist, MongoValidationError) as exc:
+            raise serializers.ValidationError("Organizational unit not found.") from exc
+
+    def to_representation(self, instance):
+        return {
+            "id": str(instance.id),
+            "requested_by": _user_summary(instance.requested_by),
+            "target_unit": _unit_summary(instance.target_unit),
+            "election_type": instance.election_type,
+            "title": instance.title,
+            "reason": instance.reason,
+            "requested_start_date": (
+                instance.requested_start_date.isoformat()
+                if instance.requested_start_date
+                else None
+            ),
+            "requested_end_date": (
+                instance.requested_end_date.isoformat()
+                if instance.requested_end_date
+                else None
+            ),
+            "status": instance.status,
+            "reviewed_by": (
+                _user_summary(instance.reviewed_by) if instance.reviewed_by else None
+            ),
+            "review_notes": instance.review_notes,
+            "reviewed_at": (
+                instance.reviewed_at.isoformat() if instance.reviewed_at else None
+            ),
+            "fulfilled_election_id": (
+                str(instance.fulfilled_election.id)
+                if instance.fulfilled_election
+                else None
+            ),
+            "created_at": instance.created_at.isoformat(),
+        }
+
+
+class ElectionRequestReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["APPROVED", "REJECTED"])
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class CandidateSerializer(serializers.Serializer):

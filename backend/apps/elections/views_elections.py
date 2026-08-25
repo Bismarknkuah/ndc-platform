@@ -87,6 +87,33 @@ class ElectionListCreateView(APIView):
             start_date=serializer.validated_data["start_date"],
             end_date=serializer.validated_data["end_date"],
         )
+
+        # Optional link back to a department's request for this election
+        # - the only way that request moves from APPROVED to FULFILLED,
+        # confirming to whoever asked that it actually got organized.
+        fulfills_request_id = request.data.get("fulfills_request_id")
+        if fulfills_request_id:
+            from mongoengine.errors import DoesNotExist as _DNE
+            from mongoengine.errors import ValidationError as _MVE
+
+            from apps.elections.documents import ElectionRequest
+
+            try:
+                election_request = ElectionRequest.objects.get(id=fulfills_request_id)
+            except (_DNE, _MVE) as exc:
+                raise APIError(
+                    "Election request not found.",
+                    code="not_found",
+                    http_status=status.HTTP_404_NOT_FOUND,
+                ) from exc
+            if election_request.status != "APPROVED":
+                raise APIError(
+                    "Only an APPROVED request can be fulfilled - review it first.",
+                    code="not_approved",
+                    http_status=status.HTTP_400_BAD_REQUEST,
+                )
+            election_request.fulfill(election)
+
         log_action(
             request.user,
             "elections.election.create",

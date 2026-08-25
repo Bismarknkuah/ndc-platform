@@ -13,6 +13,7 @@ from mongoengine import (
 from apps.accounts.documents import User
 from apps.core.documents import TimestampedDocument
 from apps.elections.constants import (
+    ELECTION_REQUEST_STATUS_CHOICES,
     ELECTION_STATUS_CHOICES,
     ELECTION_TYPE_CHOICES,
     POLLING_AGENT_ROLE_CHOICES,
@@ -46,6 +47,66 @@ class Election(TimestampedDocument):
 
     def __str__(self):
         return f"[{self.election_type}] {self.title}"
+
+
+class ElectionRequest(TimestampedDocument):
+    """
+    A formal request from a department or unit executive asking the
+    Election/IT Director to organize an election for them - since
+    election-organizing authority is centralized exclusively to that
+    role (see apps.elections.permissions.can_manage_election), every
+    other department or unit that needs an election run must go
+    through this request/approval flow rather than organizing one
+    themselves.
+    """
+
+    requested_by = ReferenceField(User, required=True)
+    target_unit = ReferenceField(OrganizationalUnit, required=True)
+    election_type = StringField(required=True, choices=ELECTION_TYPE_CHOICES)
+    title = StringField(required=True, max_length=200)
+    reason = StringField(required=True)
+    requested_start_date = DateTimeField(null=True)
+    requested_end_date = DateTimeField(null=True)
+
+    status = StringField(choices=ELECTION_REQUEST_STATUS_CHOICES, default="PENDING")
+    reviewed_by = ReferenceField(User, null=True)
+    review_notes = StringField(default="")
+    reviewed_at = DateTimeField(null=True)
+
+    # Set once an Election/IT Director acts on this request by actually
+    # creating the election - links the request to the real outcome so
+    # the requester can see it went from "asked" to "organized",
+    # without this model needing to duplicate any of the Election
+    # model's own fields.
+    fulfilled_election = ReferenceField(Election, null=True)
+
+    meta = {
+        "collection": "election_requests",
+        "indexes": ["target_unit", "status", "requested_by", "-created_at"],
+        "ordering": ["-created_at"],
+    }
+
+    def approve(self, reviewer, notes=""):
+        self.status = "APPROVED"
+        self.reviewed_by = reviewer
+        self.review_notes = notes
+        self.reviewed_at = datetime.datetime.utcnow()
+        self.save()
+
+    def reject(self, reviewer, notes=""):
+        self.status = "REJECTED"
+        self.reviewed_by = reviewer
+        self.review_notes = notes
+        self.reviewed_at = datetime.datetime.utcnow()
+        self.save()
+
+    def fulfill(self, election):
+        self.status = "FULFILLED"
+        self.fulfilled_election = election
+        self.save()
+
+    def __str__(self):
+        return f"[{self.status}] {self.title} for {self.target_unit.name}"
 
 
 class Candidate(TimestampedDocument):

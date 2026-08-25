@@ -9,6 +9,10 @@ from apps.elections.views_elections import (
     ElectionDetailView,
     ElectionListCreateView,
 )
+from apps.elections.views_requests import (
+    ElectionRequestDetailView,
+    ElectionRequestListCreateView,
+)
 from apps.elections.views_results import (
     ResultSubmissionDetailView,
     ResultSubmissionListCreateView,
@@ -42,6 +46,16 @@ urlpatterns = [
         "agents/<str:assignment_id>/check-in/",
         PollingAgentCheckInView.as_view(),
         name="election-agent-check-in",
+    ),
+    path(
+        "requests/",
+        ElectionRequestListCreateView.as_view(),
+        name="election-request-list-create",
+    ),
+    path(
+        "requests/<str:request_id>/",
+        ElectionRequestDetailView.as_view(),
+        name="election-request-detail",
     ),
     path("<str:election_id>/", ElectionDetailView.as_view(), name="election-detail"),
     path(

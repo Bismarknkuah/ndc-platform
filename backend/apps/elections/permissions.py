@@ -66,6 +66,32 @@ def can_view_election_progress(user, election) -> bool:
     return False
 
 
+def can_request_election(user, target_unit) -> bool:
+    """
+    Any real executive can request an election for their own unit -
+    department can't organize one themselves (see can_manage_election
+    above, centralized exclusively to the Election/IT Director), but
+    every department and unit executive still needs a way to ask for
+    one. Deliberately broad: hierarchy.manage (any Chairman-level
+    executive) or being HEAD/DEPUTY_HEAD of any department at this unit
+    (reusing has_any_department_authority, same as document/media
+    upload authority) - a genuine executive, not an ordinary member
+    submitting requests on a whim.
+    """
+    if user.is_superadmin:
+        return True
+    if user.role and "hierarchy.manage" in (user.role.permissions or []):
+        if (
+            user.organizational_unit
+            and user.organizational_unit.is_same_or_ancestor_of(target_unit)
+        ):
+            return True
+
+    from apps.departments.permissions import has_any_department_authority
+
+    return has_any_department_authority(user, target_unit)
+
+
 def can_manage_election(user, scope_unit) -> bool:
     """
     True if `user` may create/manage an Election (or its candidates,
@@ -137,6 +163,28 @@ def can_verify_result(user, branch_unit) -> bool:
 
 
 def is_eligible_voter(user, election) -> bool:
+    from apps.elections.constants import MANDATORY_OPEN_ELECTORATE_TYPES
     from apps.elections.documents import EligibleVoter
+
+    if election.election_type in MANDATORY_OPEN_ELECTORATE_TYPES:
+        # Supreme Court ruling: every active member is eligible for a
+        # presidential or parliamentary primary - no electorate
+        # selection involved, and this is evaluated fresh every time,
+        # not a frozen list, so a member who becomes active mid-election
+        # is immediately eligible and one who becomes inactive
+        # immediately is not.
+        if not user.is_active:
+            return False
+        if election.election_type == "PARLIAMENTARY_PRIMARY":
+            # Only members whose own unit is within the specific
+            # constituency the primary is for (e.g. a Branch inside
+            # it) - a National-level executive's own unit being an
+            # ancestor of every constituency must not grant them a vote
+            # in one they aren't actually a member of, so this check is
+            # deliberately one-directional.
+            if user.organizational_unit is None:
+                return False
+            return election.scope_unit.is_same_or_ancestor_of(user.organizational_unit)
+        return True
 
     return EligibleVoter.objects(election=election, user=user).first() is not None

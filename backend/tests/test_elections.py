@@ -1375,3 +1375,409 @@ def test_secretary_without_hierarchy_manage_can_still_see_live_results(
         f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
     )
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Supreme Court ruling: presidential/parliamentary primaries are open to
+# every active member - no curated electorate involved.
+# ---------------------------------------------------------------------------
+
+
+def test_any_active_member_is_automatically_eligible_for_presidential_primary(
+    election_it_director_client, national_unit, member_user
+):
+    """The actual ruling: no EligibleVoter selection needed at all - every
+    active member is eligible the moment the election exists."""
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "2028 Presidential Primary",
+            "election_type": "PRESIDENTIAL_PRIMARY",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    ).json()
+
+    from apps.accounts.authentication import issue_token_pair
+    from rest_framework.test import APIClient
+
+    tokens = issue_token_pair(member_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get(f"/api/v1/elections/{election['id']}/my-eligibility/")
+    assert response.status_code == 200
+    assert response.json()["eligible"] is True
+
+
+def test_inactive_member_is_not_eligible_for_presidential_primary(
+    election_it_director_client, national_unit, member_user
+):
+    """Note: an inactive member actually can't even authenticate at all
+    (the auth layer itself rejects them with 401 before any view logic
+    runs), so this checks is_eligible_voter directly rather than via a
+    real request - the is_active check inside it is still real defense
+    in depth, not dead code, for any path that reaches it."""
+    from apps.elections.documents import Election
+    from apps.elections.permissions import is_eligible_voter
+
+    member_user.is_active = False
+    member_user.save()
+
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "2028 Presidential Primary",
+            "election_type": "PRESIDENTIAL_PRIMARY",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    ).json()
+
+    election_doc = Election.objects.get(id=election["id"])
+    assert is_eligible_voter(member_user, election_doc) is False
+
+
+def test_member_outside_the_constituency_cannot_vote_in_its_parliamentary_primary(
+    election_it_director_client, national_unit, constituency_unit, member_user
+):
+    """The scoping half of the ruling: a parliamentary primary is open
+    to every active member of THAT constituency, not the whole party -
+    a member registered elsewhere must not be eligible."""
+    from apps.hierarchy.documents import OrganizationalUnit
+
+    other_constituency = OrganizationalUnit.objects.create(
+        name="Other Constituency",
+        code="ndc-other-constituency-primary-test",
+        unit_type="CONSTITUENCY",
+        parent=constituency_unit.parent,
+    )
+    member_user.organizational_unit = other_constituency
+    member_user.save()
+
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "Kumasi Central Parliamentary Primary",
+            "election_type": "PARLIAMENTARY_PRIMARY",
+            "scope_unit_id": str(constituency_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    ).json()
+
+    from apps.accounts.authentication import issue_token_pair
+    from rest_framework.test import APIClient
+
+    tokens = issue_token_pair(member_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get(f"/api/v1/elections/{election['id']}/my-eligibility/")
+    assert response.status_code == 200
+    assert response.json()["eligible"] is False
+
+
+def test_it_director_cannot_curate_electorate_for_a_mandatory_open_primary(
+    election_it_director_client, national_unit
+):
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "2028 Presidential Primary",
+            "election_type": "PRESIDENTIAL_PRIMARY",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    ).json()
+
+    response = election_it_director_client.post(
+        f"/api/v1/elections/{election['id']}/voters/",
+        {"user_ids": []},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_presidential_primary_turnout_reflects_real_active_membership_not_zero(
+    election_it_director_client, national_unit, member_user
+):
+    """Confirms the real fix in aggregate_results: eligible_voters_count
+    for a mandatory-open primary comes from actual active membership,
+    not the empty EligibleVoter table - otherwise turnout would always
+    show as unavailable despite real votes being cast."""
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "2028 Presidential Primary",
+            "election_type": "PRESIDENTIAL_PRIMARY",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    ).json()
+    candidate = election_it_director_client.post(
+        f"/api/v1/elections/{election['id']}/candidates/",
+        {"name": "Primary Candidate"},
+        format="json",
+    ).json()
+    election_it_director_client.patch(
+        f"/api/v1/elections/{election['id']}/", {"status": "OPEN"}, format="json"
+    )
+
+    from apps.accounts.authentication import issue_token_pair
+    from rest_framework.test import APIClient
+
+    tokens = issue_token_pair(member_user)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    client.post(
+        f"/api/v1/elections/{election['id']}/vote/",
+        {"candidate_id": candidate["id"]},
+        format="json",
+    )
+
+    response = election_it_director_client.get(
+        f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
+    )
+    body = response.json()
+    assert body["eligible_voters_count"] >= 1
+    assert body["total_votes_cast"] == 1
+    assert body["turnout_percentage"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Department-requests-an-election workflow
+# ---------------------------------------------------------------------------
+
+
+def test_chairman_can_request_an_election_but_not_organize_one(
+    chairman_client, national_unit
+):
+    """The whole point of this workflow: the Chairman lost organizing
+    authority, but must still have a real way to get an election
+    organized - a formal request to the Election/IT Director."""
+    response = chairman_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "NEC Officer Election",
+            "reason": "Current term has expired.",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "PENDING"
+    assert body["title"] == "NEC Officer Election"
+
+
+def test_ordinary_member_cannot_request_an_election(auth_client, national_unit):
+    """Deliberately not open to everyone - a genuine executive, not any
+    member submitting requests on a whim."""
+    response = auth_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "Should Be Rejected",
+            "reason": "No real reason.",
+        },
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+def test_department_head_without_hierarchy_manage_can_request_an_election(
+    national_unit, communications_department
+):
+    """Confirms the department-authority path works too, not just
+    hierarchy.manage - a real Communications Director (no broad
+    jurisdiction authority) can still ask."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from apps.departments.documents import DepartmentAssignment
+    from rest_framework.test import APIClient
+
+    role = Role.objects.create(
+        name="Communications Director",
+        code="communications_director_election_request_test",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["messaging.broadcast.downward"],
+    )
+    director = User(
+        email="comms-election-request-test@example.com",
+        phone_number="0244000081",
+        first_name="Test",
+        last_name="Director",
+        membership_id="NDC-TEST-000081",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    director.set_password("StrongPass123!")
+    director.save()
+    DepartmentAssignment.objects.create(
+        user=director,
+        department=communications_department,
+        organizational_unit=national_unit,
+        position="HEAD",
+    )
+
+    client = APIClient()
+    tokens = issue_token_pair(director)
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "POLL",
+            "title": "Membership Sentiment Poll",
+            "reason": "Want direct member feedback before Congress.",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+
+def test_election_it_director_sees_and_approves_pending_requests(
+    election_it_director_client, chairman_client, national_unit
+):
+    request_response = chairman_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "NEC Officer Election",
+            "reason": "Term expired.",
+        },
+        format="json",
+    ).json()
+
+    list_response = election_it_director_client.get(
+        f"/api/v1/elections/requests/?target_unit_id={national_unit.id}"
+    )
+    assert list_response.status_code == 200
+    assert any(
+        r["id"] == request_response["id"] for r in list_response.json()["results"]
+    )
+
+    approve_response = election_it_director_client.patch(
+        f"/api/v1/elections/requests/{request_response['id']}/",
+        {"status": "APPROVED", "notes": "Approved - will schedule next week."},
+        format="json",
+    )
+    assert approve_response.status_code == 200
+    assert approve_response.json()["status"] == "APPROVED"
+
+
+def test_chairman_cannot_approve_their_own_request(chairman_client, national_unit):
+    """Confirms the review step is genuinely restricted to the
+    Election/IT Director - the requester cannot self-approve."""
+    request_response = chairman_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "NEC Officer Election",
+            "reason": "Term expired.",
+        },
+        format="json",
+    ).json()
+
+    response = chairman_client.patch(
+        f"/api/v1/elections/requests/{request_response['id']}/",
+        {"status": "APPROVED"},
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+def test_approved_request_is_fulfilled_when_the_election_is_actually_created(
+    election_it_director_client, chairman_client, national_unit
+):
+    """The real end-to-end link: once approved, organizing the actual
+    election with fulfills_request_id moves the request to FULFILLED
+    and links it to the real election - the requester can see it
+    actually happened, not just that it was approved in principle."""
+    request_response = chairman_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "NEC Officer Election",
+            "reason": "Term expired.",
+        },
+        format="json",
+    ).json()
+    election_it_director_client.patch(
+        f"/api/v1/elections/requests/{request_response['id']}/",
+        {"status": "APPROVED"},
+        format="json",
+    )
+
+    start, end = _window()
+    election = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "NEC Officer Election",
+            "election_type": "PARTY_INTERNAL",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+            "fulfills_request_id": request_response["id"],
+        },
+        format="json",
+    ).json()
+
+    detail_response = election_it_director_client.get(
+        f"/api/v1/elections/requests/{request_response['id']}/"
+    )
+    body = detail_response.json()
+    assert body["status"] == "FULFILLED"
+    assert body["fulfilled_election_id"] == election["id"]
+
+
+def test_cannot_fulfill_a_request_that_was_never_approved(
+    election_it_director_client, chairman_client, national_unit
+):
+    request_response = chairman_client.post(
+        "/api/v1/elections/requests/",
+        {
+            "target_unit_id": str(national_unit.id),
+            "election_type": "PARTY_INTERNAL",
+            "title": "NEC Officer Election",
+            "reason": "Term expired.",
+        },
+        format="json",
+    ).json()
+
+    start, end = _window()
+    response = election_it_director_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "NEC Officer Election",
+            "election_type": "PARTY_INTERNAL",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+            "fulfills_request_id": request_response["id"],
+        },
+        format="json",
+    )
+    assert response.status_code == 400

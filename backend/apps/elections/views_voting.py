@@ -65,6 +65,16 @@ class EligibleVoterListCreateView(APIView):
     )
     def post(self, request, election_id):
         election = _get_election_or_404(election_id)
+        from apps.elections.constants import MANDATORY_OPEN_ELECTORATE_TYPES
+
+        if election.election_type in MANDATORY_OPEN_ELECTORATE_TYPES:
+            raise APIError(
+                "This election type is open to every active member by "
+                "Supreme Court ruling - the electorate cannot be "
+                "curated or restricted.",
+                code="mandatory_open_electorate",
+                http_status=status.HTTP_400_BAD_REQUEST,
+            )
         if not can_manage_voters(request.user, election):
             raise APIError(
                 "You do not have authority to select this election's electorate.",

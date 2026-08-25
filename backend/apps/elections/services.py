@@ -130,7 +130,11 @@ def _aggregate_from_collation(election, unit, unit_ids, position):
 def _aggregate_from_direct_voting(election, position):
     """Direct digital voting - every eligible voter casts their own
     ballot in-app. Used for internal party elections with a selected
-    electorate."""
+    electorate, and for the two mandatory-open primary types where
+    "eligible" means every active member (of the constituency, for a
+    parliamentary primary) rather than a curated EligibleVoter list."""
+    from apps.elections.constants import MANDATORY_OPEN_ELECTORATE_TYPES
+
     votes = Vote.objects(election=election)
     votes = (
         votes.filter(position=position)
@@ -145,7 +149,19 @@ def _aggregate_from_direct_voting(election, position):
 
     results, total_votes_cast, party_results = _finalize_results(candidate_totals)
 
-    eligible_count = EligibleVoter.objects(election=election).count()
+    if election.election_type in MANDATORY_OPEN_ELECTORATE_TYPES:
+        from apps.accounts.documents import User
+
+        if election.election_type == "PARLIAMENTARY_PRIMARY":
+            eligible_unit_ids = [u.id for u in units_in_subtree(election.scope_unit)]
+            eligible_count = User.objects(
+                organizational_unit__in=eligible_unit_ids, is_active=True
+            ).count()
+        else:
+            eligible_count = User.objects(is_active=True).count()
+    else:
+        eligible_count = EligibleVoter.objects(election=election).count()
+
     votes_cast_count = len(votes)
 
     return {
@@ -181,7 +197,12 @@ def aggregate_results(election, unit, position=None):
     """
     unit_ids = [u.id for u in units_in_subtree(unit)]
 
-    if EligibleVoter.objects(election=election).first() is not None:
+    from apps.elections.constants import MANDATORY_OPEN_ELECTORATE_TYPES
+
+    if (
+        election.election_type in MANDATORY_OPEN_ELECTORATE_TYPES
+        or EligibleVoter.objects(election=election).first() is not None
+    ):
         body = _aggregate_from_direct_voting(election, position)
     else:
         body = _aggregate_from_collation(election, unit, unit_ids, position)
