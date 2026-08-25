@@ -249,9 +249,23 @@ class ResultSummaryView(APIView):
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT}, tags=["elections"])
     def get(self, request, election_id):
+        from apps.elections.permissions import can_view_election_progress
         from apps.elections.views_elections import _get_election_or_404
 
         election = _get_election_or_404(election_id)
+
+        # Live, in-progress results are not public - only the organizers
+        # and the Chairman/Secretary of the relevant level can watch an
+        # election while it's still open or being collated. Once it's
+        # COMPLETED, results are published and visible to any member.
+        if election.status != "COMPLETED" and not can_view_election_progress(
+            request.user, election
+        ):
+            raise APIError(
+                "Results for this election have not been published yet.",
+                code="forbidden",
+                http_status=status.HTTP_403_FORBIDDEN,
+            )
 
         unit_id = request.query_params.get("organizational_unit_id")
         unit = election.scope_unit

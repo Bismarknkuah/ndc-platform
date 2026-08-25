@@ -320,7 +320,12 @@ export default function ElectionDetailPage() {
                   </div>
                 )}
               </>
-            ) : null}
+            ) : (
+              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Results for this election have not been published yet. They become visible to
+                everyone once collation is complete.
+              </div>
+            )}
           </div>
         </TabsContent>
 

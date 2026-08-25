@@ -23,6 +23,49 @@ def _department_election_authority(user, scope_unit) -> bool:
     return False
 
 
+SECRETARY_ROLE_CODES = (
+    "national_general_secretary",
+    "regional_secretary",
+    "constituency_secretary",
+    "branch_secretary",
+)
+
+
+def can_view_election_progress(user, election) -> bool:
+    """
+    Live, in-progress results (before the election reaches COMPLETED) are
+    only visible to people with a genuine reason to see them mid-process:
+    whoever actually organizes the election (can_manage_election), plus -
+    by explicit design - real transparency for the Chairman and the
+    Secretary of the relevant level, even though neither organizes the
+    election themselves. Chairman-level roles hold hierarchy.manage
+    (general oversight); Secretary is checked by role code specifically
+    since Secretary deliberately does not carry hierarchy.manage (see
+    apps/dashboard/role_insights.py's SECRETARY_ROLE_CODES) - without this
+    explicit carve-out, removing organizing authority from Chairman roles
+    would have also silently removed their ability to watch an election
+    they have every legitimate reason to watch.
+
+    Once the election is COMPLETED, results are public to any
+    authenticated member - see the status check at the call site in
+    ResultSummaryView, not duplicated here.
+    """
+    if can_manage_election(user, election.scope_unit):
+        return True
+
+    unit = user.organizational_unit
+    if unit is None:
+        return False
+    if not unit.is_same_or_ancestor_of(election.scope_unit):
+        return False
+
+    if user.role and "hierarchy.manage" in (user.role.permissions or []):
+        return True
+    if user.role and user.role.code in SECRETARY_ROLE_CODES:
+        return True
+    return False
+
+
 def can_manage_election(user, scope_unit) -> bool:
     """
     True if `user` may create/manage an Election (or its candidates,

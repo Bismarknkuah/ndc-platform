@@ -107,11 +107,19 @@ def test_seed_platform_demo_district_is_auxiliary_not_a_main_chain_rung():
 def test_jurisdiction_admin_roles_carry_broad_multi_feature_permissions():
     """Each real jurisdiction admin (National/Regional/District/Constituency)
     should carry a genuinely broad permission set - hierarchy, finance,
-    elections, membership, messaging - not just a single narrow tag, so
-    the demo accounts actually showcase full jurisdiction control as
-    requested. District Co-ordinator matching the others here is an
-    explicit override of Article 17's literal "coordinates, doesn't
-    command" framing, made by request rather than by default."""
+    membership, messaging - not just a single narrow tag, so the demo
+    accounts actually showcase full jurisdiction control as requested.
+    District Co-ordinator matching the others here is an explicit
+    override of Article 17's literal "coordinates, doesn't command"
+    framing, made by request rather than by default.
+
+    elections.manage is deliberately NOT in this list - by explicit
+    request, election-organizing authority is centralized exclusively
+    to the Election/IT Director roles (director_elections,
+    election_it_director), not even the National Chairman. See
+    can_view_election_progress for the real, separate transparency
+    mechanism these roles keep instead - full oversight of an election
+    in progress, without the ability to organize or run one."""
     from apps.accounts.documents import Role
 
     call_command("seed_platform")
@@ -124,8 +132,12 @@ def test_jurisdiction_admin_roles_carry_broad_multi_feature_permissions():
     ):
         role = Role.objects(code=code).first()
         assert role is not None
-        for required in ("hierarchy.manage", "finance.manage", "elections.manage"):
+        for required in ("hierarchy.manage", "finance.manage"):
             assert required in role.permissions, f"{code} missing {required}"
+        assert "elections.manage" not in role.permissions, (
+            f"{code} must not organize elections - that authority is "
+            "centralized to the Election/IT Director roles only"
+        )
 
 
 def test_seed_platform_creates_department_head_demo_accounts_with_real_assignments():

@@ -475,7 +475,7 @@ def test_unrelated_user_cannot_verify_result(
 
 
 def test_summary_aggregates_single_branch(
-    election_with_candidates, branch_unit, national_unit
+    election_with_candidates, branch_unit, national_unit, election_it_director_client
 ):
     election, candidate_a, candidate_b = election_with_candidates
     client, _ = _make_branch_executive(branch_unit)
@@ -496,7 +496,11 @@ def test_summary_aggregates_single_branch(
         format="json",
     )
 
-    response = client.get(
+    # Live, mid-collation results are only visible to a legitimate
+    # viewer (organizer, or Chairman/Secretary of the level) now - not
+    # to just anyone, including the branch executive who submitted this
+    # one result. See can_view_election_progress.
+    response = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
     )
     assert response.status_code == 200
@@ -511,7 +515,11 @@ def test_summary_aggregates_single_branch(
 
 
 def test_summary_reflects_partial_reporting_across_multiple_branches(
-    election_with_candidates, branch_unit, constituency_unit, national_unit
+    election_with_candidates,
+    branch_unit,
+    constituency_unit,
+    national_unit,
+    election_it_director_client,
 ):
     from apps.hierarchy.documents import OrganizationalUnit
 
@@ -540,7 +548,7 @@ def test_summary_reflects_partial_reporting_across_multiple_branches(
         format="json",
     )
 
-    response = client.get(
+    response = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
     )
     body = response.json()
@@ -552,7 +560,7 @@ def test_summary_reflects_partial_reporting_across_multiple_branches(
 
 
 def test_summary_at_regional_level_matches_national_when_single_region(
-    election_with_candidates, branch_unit, regional_unit
+    election_with_candidates, branch_unit, regional_unit, election_it_director_client
 ):
     election, candidate_a, candidate_b = election_with_candidates
     client, _ = _make_branch_executive(branch_unit)
@@ -569,7 +577,7 @@ def test_summary_at_regional_level_matches_national_when_single_region(
         },
         format="json",
     )
-    response = client.get(
+    response = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={regional_unit.id}"
     )
     assert response.status_code == 200
@@ -627,11 +635,11 @@ def test_multi_position_election_tallies_are_independent(
         format="json",
     )
 
-    chair_summary = client.get(
+    chair_summary = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/"
         f"?organizational_unit_id={national_unit.id}&position=National Chairman"
     ).json()
-    treasurer_summary = client.get(
+    treasurer_summary = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/"
         f"?organizational_unit_id={national_unit.id}&position=National Treasurer"
     ).json()
@@ -952,7 +960,7 @@ def test_national_sees_party_breakdown_for_presidential_race(
         format="json",
     )
 
-    response = client.get(
+    response = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/"
         f"?organizational_unit_id={national_unit.id}&position=President"
     )
@@ -1008,7 +1016,7 @@ def test_parliamentary_race_is_independent_per_constituency(
         format="json",
     )
 
-    response = client.get(
+    response = election_it_director_client.get(
         f"/api/v1/elections/{election['id']}/results/summary/"
         f"?organizational_unit_id={national_unit.id}&position={mp_position}"
     )
@@ -1202,3 +1210,168 @@ def test_director_can_revoke_eligibility(
         f"/api/v1/elections/{election['id']}/voters/{member_user.id}/"
     )
     assert response.status_code == 204
+
+
+# ---------------------------------------------------------------------------
+# Centralized election authority: only Election/IT Director organizes,
+# but Chairman/Secretary retain real transparency into live results.
+# ---------------------------------------------------------------------------
+
+
+def test_national_chairman_can_no_longer_organize_an_election(
+    chairman_client, national_unit
+):
+    """The actual fix: election-organizing authority is now centralized
+    exclusively to the Election/IT Director roles - not even the
+    National Chairman can create an election anymore."""
+    start, end = _window()
+    response = chairman_client.post(
+        "/api/v1/elections/",
+        {
+            "title": "Should Be Rejected",
+            "election_type": "PARTY_INTERNAL",
+            "scope_unit_id": str(national_unit.id),
+            "start_date": start,
+            "end_date": end,
+        },
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+def test_national_chairman_can_still_see_live_results_before_completion(
+    election_with_candidates, branch_unit, national_unit, chairman_client
+):
+    """The transparency half of the fix: the Chairman lost organizing
+    authority above, but must still be able to watch an election in
+    progress - real oversight, not blindness."""
+    election, candidate_a, _ = election_with_candidates
+    client, _ = _make_branch_executive(branch_unit)
+    client.post(
+        "/api/v1/elections/results/",
+        {
+            "election_id": election["id"],
+            "branch_unit_id": str(branch_unit.id),
+            "collation_sheet_photo_base64": _FAKE_PHOTO,
+            "tallies": [{"candidate_id": candidate_a["id"], "votes": 10}],
+        },
+        format="json",
+    )
+
+    response = chairman_client.get(
+        f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
+    )
+    assert response.status_code == 200
+
+
+def test_ordinary_member_blocked_from_live_results_before_completion(
+    election_with_candidates, branch_unit, national_unit, auth_client
+):
+    """The publication half of the fix: an ordinary member must not be
+    able to see live, unverified, in-progress results - only once the
+    election is actually completed."""
+    election, candidate_a, _ = election_with_candidates
+    client, _ = _make_branch_executive(branch_unit)
+    client.post(
+        "/api/v1/elections/results/",
+        {
+            "election_id": election["id"],
+            "branch_unit_id": str(branch_unit.id),
+            "collation_sheet_photo_base64": _FAKE_PHOTO,
+            "tallies": [{"candidate_id": candidate_a["id"], "votes": 10}],
+        },
+        format="json",
+    )
+
+    response = auth_client.get(
+        f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
+    )
+    assert response.status_code == 403
+
+
+def test_ordinary_member_can_see_results_once_election_is_completed(
+    election_with_candidates,
+    branch_unit,
+    national_unit,
+    auth_client,
+    election_it_director_client,
+):
+    """Once the election is actually COMPLETED, results are published -
+    any authenticated member can see them, not just organizers/oversight."""
+    from apps.elections.documents import Election
+
+    election, candidate_a, _ = election_with_candidates
+    client, _ = _make_branch_executive(branch_unit)
+    client.post(
+        "/api/v1/elections/results/",
+        {
+            "election_id": election["id"],
+            "branch_unit_id": str(branch_unit.id),
+            "collation_sheet_photo_base64": _FAKE_PHOTO,
+            "tallies": [{"candidate_id": candidate_a["id"], "votes": 10}],
+        },
+        format="json",
+    )
+
+    Election.objects.filter(id=election["id"]).update(status="COMPLETED")
+
+    response = auth_client.get(
+        f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
+    )
+    assert response.status_code == 200
+
+
+def test_secretary_without_hierarchy_manage_can_still_see_live_results(
+    election_with_candidates, branch_unit, national_unit
+):
+    """Secretary deliberately does not carry hierarchy.manage (see
+    apps/dashboard/role_insights.py), so without an explicit role-code
+    carve-out in can_view_election_progress, the Secretary would have
+    no way to watch an election either - confirms the carve-out
+    actually works for a genuine Secretary account, not just Chairman."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import Role, User
+    from rest_framework.test import APIClient
+
+    election, candidate_a, _ = election_with_candidates
+    client, _ = _make_branch_executive(branch_unit)
+    client.post(
+        "/api/v1/elections/results/",
+        {
+            "election_id": election["id"],
+            "branch_unit_id": str(branch_unit.id),
+            "collation_sheet_photo_base64": _FAKE_PHOTO,
+            "tallies": [{"candidate_id": candidate_a["id"], "votes": 10}],
+        },
+        format="json",
+    )
+
+    role = Role.objects.create(
+        name="National General Secretary",
+        code="national_general_secretary",
+        scope="NATIONAL",
+        is_executive=True,
+        permissions=["hierarchy.manage", "messaging.broadcast.downward"],
+    )
+    role.permissions = ["messaging.broadcast.downward"]  # confirm no hierarchy.manage
+    role.save()
+    secretary = User(
+        email="secretary-election-test@example.com",
+        phone_number="0244000082",
+        first_name="Test",
+        last_name="Secretary",
+        membership_id="NDC-TEST-000082",
+        organizational_unit=national_unit,
+        role=role,
+    )
+    secretary.set_password("StrongPass123!")
+    secretary.save()
+
+    tokens = issue_token_pair(secretary)
+    secretary_client = APIClient()
+    secretary_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = secretary_client.get(
+        f"/api/v1/elections/{election['id']}/results/summary/?organizational_unit_id={national_unit.id}"
+    )
+    assert response.status_code == 200
