@@ -13,6 +13,7 @@ from apps.elections.views_requests import (
     ElectionRequestDetailView,
     ElectionRequestListCreateView,
 )
+from apps.kiosk.views import KioskRegistrationView
 from apps.elections.views_results import (
     ResultSubmissionDetailView,
     ResultSubmissionListCreateView,
@@ -67,6 +68,11 @@ urlpatterns = [
         "<str:election_id>/results/summary/",
         ResultSummaryView.as_view(),
         name="election-results-summary",
+    ),
+    path(
+        "<str:election_id>/kiosks/",
+        KioskRegistrationView.as_view(),
+        name="election-kiosk-list-create",
     ),
     path(
         "<str:election_id>/voters/",

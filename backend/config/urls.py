@@ -66,6 +66,11 @@ urlpatterns = [
         "api/v1/elections/",
         include("apps.elections.urls"),
     ),
+    # In-person kiosk voting
+    path(
+        "api/v1/kiosk/",
+        include("apps.kiosk.urls"),
+    ),
     # Events
     path(
         "api/v1/events/",

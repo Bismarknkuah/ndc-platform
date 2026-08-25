@@ -6,6 +6,7 @@ from mongoengine import (
     DateTimeField,
     DictField,
     EmailField,
+    IntField,
     ListField,
     ReferenceField,
     StringField,
@@ -54,6 +55,15 @@ class User(TimestampedDocument):
     email = EmailField(required=True, unique=True)
     phone_number = StringField(required=True, unique=True, max_length=20)
     password_hash = StringField(required=True)
+
+    # Kiosk Voting PIN - an optional second factor for in-person kiosk
+    # voting (see apps.kiosk). Null until the member sets one through
+    # their own authenticated account; a membership ID alone is never
+    # enough to vote at a kiosk. failed_attempts/locked_until throttle
+    # PIN-guessing the same way a login lockout would.
+    kiosk_pin_hash = StringField(null=True)
+    kiosk_pin_failed_attempts = IntField(default=0)
+    kiosk_pin_locked_until = DateTimeField(null=True)
 
     first_name = StringField(required=True, max_length=100)
     last_name = StringField(required=True, max_length=100)
@@ -118,6 +128,27 @@ class User(TimestampedDocument):
 
     def check_password(self, raw_password: str) -> bool:
         return check_password(raw_password, self.password_hash)
+
+    def set_kiosk_pin(self, raw_pin: str):
+        """The Kiosk Voting PIN - a second factor the member sets
+        themselves (requires their real password to set, so a stolen
+        membership ID alone can never be used to set one on someone
+        else's account), hashed the same way as the account password,
+        never stored or transmitted in plain text."""
+        self.kiosk_pin_hash = make_password(raw_pin)
+        self.kiosk_pin_failed_attempts = 0
+        self.kiosk_pin_locked_until = None
+
+    def check_kiosk_pin(self, raw_pin: str) -> bool:
+        if not self.kiosk_pin_hash:
+            return False
+        return check_password(raw_pin, self.kiosk_pin_hash)
+
+    @property
+    def kiosk_pin_is_locked(self) -> bool:
+        if self.kiosk_pin_locked_until is None:
+            return False
+        return datetime.datetime.utcnow() < self.kiosk_pin_locked_until
 
     @property
     def is_authenticated(self):

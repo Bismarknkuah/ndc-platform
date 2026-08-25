@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "apps.discipline",
     "apps.executive_ai",
     "apps.dues",
+    "apps.kiosk",
 ]
 
 
@@ -140,6 +141,14 @@ JWT_ACCESS_TOKEN_TTL = timedelta(
 
 JWT_REFRESH_TOKEN_TTL = timedelta(
     days=int(os.getenv("JWT_REFRESH_TOKEN_TTL_DAYS", "7"))
+)
+
+# Deliberately short - a kiosk vote token grants exactly one narrow
+# action (view one ballot, cast one vote in one election) and is
+# revoked the instant it's used, so a long window is never useful and
+# only widens the exposure if a kiosk terminal is ever compromised.
+JWT_KIOSK_VOTE_TOKEN_TTL = timedelta(
+    minutes=int(os.getenv("JWT_KIOSK_VOTE_TOKEN_TTL_MINUTES", "5"))
 )
 
 
