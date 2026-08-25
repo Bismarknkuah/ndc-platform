@@ -25,6 +25,12 @@ SECRETARY_ROLE_CODES = {
 WING_ROLE_UNIT_TYPES = {
     "national_youth_organizer": "YOUTH_WING",
     "national_women_organizer": "WOMENS_WING",
+    "regional_youth_organizer": "YOUTH_WING",
+    "constituency_youth_organizer": "YOUTH_WING",
+    "branch_youth_organizer": "YOUTH_WING",
+    "regional_women_organizer": "WOMENS_WING",
+    "constituency_women_organizer": "WOMENS_WING",
+    "branch_women_organizer": "WOMENS_WING",
 }
 
 
@@ -81,11 +87,9 @@ def _wing_insight(user, unit_type: str) -> dict:
         target_unit__in=unit_ids, status="OPEN"
     )
 
-    wing_label = "Youth" if unit_type == "YOUTH_WING" else "Women's"
-
     return {
         "widget": "wing",
-        "title": f"{wing_label} Wing Overview",
+        "title": f"{user.role.name} Overview",
         "stats": [
             {"label": "Upcoming Events", "value": upcoming_events.count()},
             {

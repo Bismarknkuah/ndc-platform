@@ -373,7 +373,7 @@ def test_youth_wing_organizer_gets_real_wing_insight_not_jurisdiction_rollup():
     assert response.status_code == 200
     body = response.json()
     assert body["role_insight"]["widget"] == "wing"
-    assert body["role_insight"]["title"] == "Youth Wing Overview"
+    assert body["role_insight"]["title"] == "National Youth Organizer Overview"
 
 
 def test_ordinary_member_and_broad_executive_get_no_role_insight_clutter():

@@ -183,6 +183,32 @@ BASE_ROLES = [
         "permissions": ["hierarchy.manage", "messaging.broadcast.downward"],
     },
     {
+        # Same pattern as Secretary and Communications: the National
+        # role is a genuine NEC officer with broad wing-oversight
+        # authority (hierarchy.manage), but the constitution also names
+        # a distinct Women Organiser at Regional and Constituency level
+        # (and Branch, per the current 2026 branch-election structure)
+        # as an Executive Committee member, not a second NEC-level
+        # officer - narrower on purpose, same single permission as
+        # Regional/Constituency/Branch Secretary.
+        "code": "regional_women_organizer",
+        "name": "Regional Women's Organizer",
+        "scope": "REGIONAL",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "constituency_women_organizer",
+        "name": "Constituency Women's Organizer",
+        "scope": "CONSTITUENCY",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "branch_women_organizer",
+        "name": "Branch Women's Organizer",
+        "scope": "BRANCH",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
         # Same reasoning as communications_director above: the Women's
         # Affairs *department* head's tools are scoped to that
         # department, distinct from the National Women's Organizer NEC
@@ -197,6 +223,24 @@ BASE_ROLES = [
         "name": "National Youth Organizer",
         "scope": "YOUTH_WING",
         "permissions": ["hierarchy.manage", "messaging.broadcast.downward"],
+    },
+    {
+        "code": "regional_youth_organizer",
+        "name": "Regional Youth Organizer",
+        "scope": "REGIONAL",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "constituency_youth_organizer",
+        "name": "Constituency Youth Organizer",
+        "scope": "CONSTITUENCY",
+        "permissions": ["messaging.broadcast.downward"],
+    },
+    {
+        "code": "branch_youth_organizer",
+        "name": "Branch Youth Organizer",
+        "scope": "BRANCH",
+        "permissions": ["messaging.broadcast.downward"],
     },
     # Main chain - Regional
     {
@@ -837,12 +881,60 @@ class Command(BaseCommand):
                 "unit": auxiliary_units["WOMENS_WING"],
             },
             {
+                "email": "demo.regionalwomen@ndc.example",
+                "membership_id": "NDC-DEMO-000036",
+                "first_name": "Demo",
+                "last_name": "Regional Women's Organizer",
+                "role_code": "regional_women_organizer",
+                "unit": regional_unit,
+            },
+            {
+                "email": "demo.constituencywomen@ndc.example",
+                "membership_id": "NDC-DEMO-000037",
+                "first_name": "Demo",
+                "last_name": "Constituency Women's Organizer",
+                "role_code": "constituency_women_organizer",
+                "unit": constituency_unit,
+            },
+            {
+                "email": "demo.branchwomen@ndc.example",
+                "membership_id": "NDC-DEMO-000038",
+                "first_name": "Demo",
+                "last_name": "Branch Women's Organizer",
+                "role_code": "branch_women_organizer",
+                "unit": branch_unit,
+            },
+            {
                 "email": "demo.youthwing@ndc.example",
                 "membership_id": "NDC-DEMO-000020",
                 "first_name": "Demo",
                 "last_name": "National Youth Organizer",
                 "role_code": "national_youth_organizer",
                 "unit": auxiliary_units["YOUTH_WING"],
+            },
+            {
+                "email": "demo.regionalyouth@ndc.example",
+                "membership_id": "NDC-DEMO-000039",
+                "first_name": "Demo",
+                "last_name": "Regional Youth Organizer",
+                "role_code": "regional_youth_organizer",
+                "unit": regional_unit,
+            },
+            {
+                "email": "demo.constituencyyouth@ndc.example",
+                "membership_id": "NDC-DEMO-000040",
+                "first_name": "Demo",
+                "last_name": "Constituency Youth Organizer",
+                "role_code": "constituency_youth_organizer",
+                "unit": constituency_unit,
+            },
+            {
+                "email": "demo.branchyouth@ndc.example",
+                "membership_id": "NDC-DEMO-000041",
+                "first_name": "Demo",
+                "last_name": "Branch Youth Organizer",
+                "role_code": "branch_youth_organizer",
+                "unit": branch_unit,
             },
             {
                 "email": "demo.itdirector@ndc.example",

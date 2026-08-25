@@ -340,17 +340,18 @@ you're running an older checkout, pull the latest commit.
 ## Demo login accounts (public, by explicit request)
 
 The login page shows one-click "try a demo account" buttons for every
-distinct role defined in `seed_platform.py`, 36 in total, grouped into
+distinct role defined in `seed_platform.py`, 42 in total, grouped into
 four sections: the geographic hierarchy (Superadmin, Flagbearer,
 National Chairman down through Ordinary Member), National Secretariat
 officers (General Secretary, National Organizer, the appointed
-Directors, Internal Auditor, the National Women's/Youth Organizers),
-auxiliary structures (TEIN, Zongo Caucus, Professionals Forum, the
-Diaspora chapter, Council of Elders, Parliamentary Group, a Functional
-Committee), and department heads (Communications at all four levels -
-National, Regional, Constituency, Branch, matching the constitution's
-named positions at each - Finance, Elections, Membership, Women's
-Affairs, IT). **This is a deliberate product
+Directors, Internal Auditor, the National Women's/Youth Organizers -
+each now with real Regional/Constituency/Branch-level counterparts
+too, matching the constitution's named positions at each level, same
+pattern as Communications and Secretary), auxiliary structures (TEIN,
+Zongo Caucus, Professionals Forum, the Diaspora chapter, Council of
+Elders, Parliamentary Group, a Functional Committee), and department
+heads (Communications at all four levels, Finance, Elections,
+Membership, Women's Affairs, IT). **This is a deliberate product
 decision, not an oversight**: these buttons are visible to anyone who
 visits the site, including on the real production deployment, with
 full understanding that this means anyone can assume any of these

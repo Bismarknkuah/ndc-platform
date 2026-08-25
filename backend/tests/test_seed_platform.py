@@ -417,3 +417,51 @@ def test_branch_communications_officer_demo_account_can_log_in():
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
     response = client.get("/api/v1/auth/me/")
     assert response.status_code == 200
+
+
+def test_regional_youth_organizer_demo_account_gets_real_wing_insight():
+    """The actual fix: the constitution names a distinct Youth/Women
+    Organizer at every level (Regional/Constituency/Branch), matching
+    Secretary and Communications - previously Youth/Women Organizer
+    only existed at National. Confirms the new Regional demo account
+    gets the real wing insight (scoped to their own unit, not the
+    whole national wing) rather than nothing."""
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import User
+    from rest_framework.test import APIClient
+
+    call_command("seed_platform")
+
+    organizer = User.objects(email="demo.regionalyouth@ndc.example").first()
+    assert organizer is not None
+    assert organizer.role.code == "regional_youth_organizer"
+    assert "hierarchy.manage" not in (organizer.role.permissions or [])
+
+    tokens = issue_token_pair(organizer)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+
+    response = client.get("/api/v1/dashboard/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "jurisdiction_summary" not in body
+    assert body["role_insight"]["widget"] == "wing"
+    assert body["role_insight"]["title"] == "Regional Youth Organizer Overview"
+
+
+def test_branch_women_organizer_demo_account_can_log_in():
+    from apps.accounts.authentication import issue_token_pair
+    from apps.accounts.documents import User
+    from rest_framework.test import APIClient
+
+    call_command("seed_platform")
+
+    organizer = User.objects(email="demo.branchwomen@ndc.example").first()
+    assert organizer is not None
+    assert organizer.role.code == "branch_women_organizer"
+
+    tokens = issue_token_pair(organizer)
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+    response = client.get("/api/v1/auth/me/")
+    assert response.status_code == 200

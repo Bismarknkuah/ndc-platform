@@ -75,7 +75,13 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { label: "Director, Administration", email: "demo.administration@ndc.example", icon: ClipboardList, group: "national" },
   { label: "Internal Auditor", email: "demo.auditor@ndc.example", icon: ShieldCheck, group: "national" },
   { label: "National Women's Organizer", email: "demo.womenswing@ndc.example", icon: Heart, group: "national" },
+  { label: "Regional Women's Organizer", email: "demo.regionalwomen@ndc.example", icon: Heart, group: "national" },
+  { label: "Constituency Women's Organizer", email: "demo.constituencywomen@ndc.example", icon: Heart, group: "national" },
+  { label: "Branch Women's Organizer", email: "demo.branchwomen@ndc.example", icon: Heart, group: "national" },
   { label: "National Youth Organizer", email: "demo.youthwing@ndc.example", icon: GraduationCap, group: "national" },
+  { label: "Regional Youth Organizer", email: "demo.regionalyouth@ndc.example", icon: GraduationCap, group: "national" },
+  { label: "Constituency Youth Organizer", email: "demo.constituencyyouth@ndc.example", icon: GraduationCap, group: "national" },
+  { label: "Branch Youth Organizer", email: "demo.branchyouth@ndc.example", icon: GraduationCap, group: "national" },
 
   { label: "TEIN National Coordinator", email: "demo.tein@ndc.example", icon: GraduationCap, group: "auxiliary" },
   { label: "TEIN Campus Coordinator", email: "demo.teincampus@ndc.example", icon: GraduationCap, group: "auxiliary" },
