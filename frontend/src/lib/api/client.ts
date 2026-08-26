@@ -6,9 +6,24 @@ import axios, {
 import { useAuthStore } from "@/stores/auth-store";
 import type { ApiErrorBody } from "./types";
 
+// Deliberately NOT a hardcoded production URL. A missing
+// NEXT_PUBLIC_API_BASE_URL should fail loudly and obviously (a failed
+// request to localhost, clearly visible in the browser console) rather
+// than silently succeeding against the real production backend - that
+// silent-success behavior is exactly what made a disconnected backend
+// look "still working" in a past incident. If you see network errors
+// and this warning, set NEXT_PUBLIC_API_BASE_URL in your deployment's
+// environment variables.
+if (!process.env.NEXT_PUBLIC_API_BASE_URL && typeof window !== "undefined") {
+  console.warn(
+    "NEXT_PUBLIC_API_BASE_URL is not set - falling back to localhost, which " +
+      "will fail unless a backend is actually running locally. Set this " +
+      "environment variable to your real backend URL.",
+  );
+}
+
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://ndc-platform-production.up.railway.app/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
 export class ApiError extends Error {
   code: string;

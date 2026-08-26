@@ -103,6 +103,17 @@ work, but "should" isn't "verified."
    ```
 4. Deploy. Vercel assigns a domain like `ndc-platform.vercel.app`.
 
+**If `NEXT_PUBLIC_API_BASE_URL` is ever missing** (a build run without it
+set, a misconfigured preview deployment, or a local `next build` with no
+`.env.local`), the frontend now deliberately falls back to
+`http://localhost:8000/api/v1` and logs a clear console warning - it used
+to fall back to this project's real production Railway URL instead,
+which meant a misconfigured deployment would silently connect to the
+real backend and look like everything was fine, rather than failing
+loudly and obviously. If you ever see network errors in the browser
+console pointing at `localhost`, that is this fallback telling you the
+environment variable genuinely isn't set where you expected it to be.
+
 ## 3. Close the loop
 
 Go back to Railway and update the backend's `CORS_ALLOWED_ORIGINS` with

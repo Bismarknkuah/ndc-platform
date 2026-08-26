@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AxiosError } from "axios";
 import { ApiError, toApiError } from "./client";
 
@@ -7,6 +7,29 @@ function makeAxiosError(overrides: Partial<AxiosError> = {}): AxiosError {
   Object.assign(error, overrides);
   return error;
 }
+
+describe("API_BASE_URL", () => {
+  it("never falls back to a hardcoded production URL", async () => {
+    // Regression test: this module used to fall back to a specific,
+    // real production Railway URL when NEXT_PUBLIC_API_BASE_URL wasn't
+    // set, which meant a misconfigured deployment (or anyone building
+    // this codebase without setting the env var) would silently
+    // connect to the real production backend instead of failing
+    // obviously. A missing env var must now fail loudly (a failed
+    // request to localhost) rather than succeed silently against
+    // someone's real data.
+    vi.resetModules();
+    const original = process.env.NEXT_PUBLIC_API_BASE_URL;
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    const { API_BASE_URL } = await import("./client");
+
+    expect(API_BASE_URL).not.toMatch(/railway\.app/);
+    expect(API_BASE_URL).toMatch(/localhost/);
+
+    if (original !== undefined) process.env.NEXT_PUBLIC_API_BASE_URL = original;
+  });
+});
 
 describe("ApiError", () => {
   it("carries code, status, and details alongside the message", () => {
